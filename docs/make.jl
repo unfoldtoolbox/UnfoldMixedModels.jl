@@ -22,7 +22,21 @@ makedocs(;
     format = Documenter.HTML(;
         canonical = "https://unfoldtoolbox.github.io/UnfoldMixedModels.jl",
     ),
-    pages = ["index.md"; numbered_pages],
+    pages = [
+        "index.md",
+        "Tutorials" => [
+            "lmmERP (mass univariate)" => "tutorials/lmm_mu.md",
+            "lmmERP (overlap correction)" => "tutorials/lmm_overlap.md",
+        ],
+        "HowTo" => ["P-values for mixedModels" => "HowTo/lmm_pvalues.md"],
+        "Explanations" => [],
+        "Reference" => [
+            "API: Types" => "references/types.md",
+            "API: Functions" => "references/functions.md",
+        ],
+        "Contributing" => ["90-contributing.md"],
+        "Developer Guide" => ["91-developer.md"],
+    ],
 )
 
 deploydocs(; repo = "github.com/unfoldtoolbox/UnfoldMixedModels.jl")
