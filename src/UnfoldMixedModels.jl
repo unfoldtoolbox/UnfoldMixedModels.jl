@@ -19,7 +19,7 @@ using SimpleTraits
 using Reexport
 
 include("typedefinitions.jl")
-include("basisFunctions.jl")
+include("basisfunctions.jl")
 include("condense.jl")
 include("designmatrix.jl")
 include("fit.jl")
