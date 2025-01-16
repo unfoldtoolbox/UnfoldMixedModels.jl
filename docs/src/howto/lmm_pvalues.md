@@ -5,7 +5,7 @@ There are currently two ways to obtain p-values for LMMs: Wald's t-test and like
 ### Setup
 
 ```@example Main
-using MixedModels, Unfold # we require to load MixedModels to load the PackageExtension
+using UnfoldMixedModels # we require to load MixedModels to load the PackageExtension
 using DataFrames
 using UnfoldSim
 using CairoMakie
