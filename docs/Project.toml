@@ -1,11 +1,16 @@
-# Don't forget to run
-#
-#     pkg> dev ..
-#
 [deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DisplayAs = "0b91fe84-8a4c-11e9-3e1d-67c38462b6d6"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 LiveServer = "16fef848-5104-11e9-1b77-fb7a48bbb589"
+MixedModels = "ff71e718-51f3-5ec2-a782-8ffcbfa3c316"
+Unfold = "181c99d8-e21b-4ff3-b70b-c233eddec679"
+UnfoldMakie = "69a5ce3b-64fb-4f22-ae69-36dd4416af2a"
 UnfoldMixedModels = "019ae9e0-8363-565c-86e5-97a5a2fe84f4"
+UnfoldSim = "ed8ae6d2-84d3-44c6-ab46-0baf21700804"
 
 [compat]
 Documenter = "1"
