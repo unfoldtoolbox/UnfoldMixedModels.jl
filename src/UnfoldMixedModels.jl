@@ -32,5 +32,6 @@ include("effects.jl")
 export DesignMatrixLinearMixedModel, DesignMatrixLinearMixedModelContinuousTime
 export LinearMixedModelFitCollection
 export UnfoldLinearMixedModel, UnfoldLinearMixedModelContinuousTime
+export likelihoodratiotest
 
 end

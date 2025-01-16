@@ -28,7 +28,7 @@ makedocs(;
             "lmmERP (mass univariate)" => "tutorials/lmm_mu.md",
             "lmmERP (overlap correction)" => "tutorials/lmm_overlap.md",
         ],
-        "HowTo" => ["P-values for mixedModels" => "HowTo/lmm_pvalues.md"],
+        "HowTo" => ["P-values for mixedModels" => "howto/lmm_pvalues.md"],
         "Explanations" => [],
         "Reference" => [
             "API: Types" => "references/types.md",
