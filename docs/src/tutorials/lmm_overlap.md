@@ -42,7 +42,7 @@ Again we have 4 steps:
 
 ### 1. Specify a temporal basisfunction
 
-By default, we would want to use a FIR basis function. See [Basis Functions](@ref) for more details.
+By default, we would want to use a FIR basis function.
 
 ```@example Main
 basisfunction = firbasis(τ=(-0.4, .8), sfreq=20, name="stimulus")
