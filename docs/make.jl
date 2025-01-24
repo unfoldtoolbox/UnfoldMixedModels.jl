@@ -19,6 +19,8 @@ makedocs(;
     authors = "Benedikt Ehinger <benedikt.ehinger@vis.uni-stuttgart.de>",
     repo = "https://github.com/unfoldtoolbox/UnfoldMixedModels.jl/blob/{commit}{path}#{line}",
     sitename = "UnfoldMixedModels.jl",
+    sidebar_sitename = false,
+    assets = String[],
     format = Documenter.HTML(;
         canonical = "https://unfoldtoolbox.github.io/UnfoldMixedModels.jl",
     ),
