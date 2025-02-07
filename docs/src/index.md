@@ -15,13 +15,13 @@ This is an standalone-addon to `Unfold.jl` with similar syntax, but optimized fo
 ```
 
 ## Key features
-- **MixedModels.jl:** Powered by the up-to-100x faster* implementation of MixedModels.jl
+- **MixedModels.jl:** Powered by the up-to-100x faster implementation of MixedModels.jl
 - **Subject and Item effects:** Fit the full spectrum of LMMs, random slopes and all!
 - **Beta: clusterpermutation:** Combine with `UnfoldStats.jl` and fit LMM clusterpermutation tests
 - **Alpha: Overlap:** Model overlap and LMMs (experimental!)
 
-* compared to LME4
-* 
+
+
 ## Installation
 ```julia-repl
 julia> using Pkg; Pkg.add("UnfoldMixedModels")
