@@ -41,13 +41,13 @@ As you can see, we have some likelihood ratio outcomes, exciting!
 ### Extract p-values
 
 ```@example Main
-pvalues(uf_lrt)
+pvalue(uf_lrt)
 ```
 
-We have extracted the p-values and now need to make them usable.     The solution can be found in the documentation under `?pvalues`.
+We have extracted the p-values and now need to make them usable.     The solution can be found in the documentation under `?pvalue`.
 
 ```@example Main
-pvals_lrt = vcat(pvalues(uf_lrt)...)
+pvals_lrt = vcat(pvalue(uf_lrt)...)
 nchan = 1
 ntime = length(times)
 reshape(pvals_lrt, ntime, nchan)' # note the last transpose via ' !
@@ -63,13 +63,13 @@ This method is easier to calculate but has limitations in accuracy and scope. It
 res = coeftable(m1)
 # only fixed effects: what is not in a ranef group is a fixef.
 res = res[isnothing.(res.group), :]
-# calculate t-value
-res[:, :tvalue] = res.estimate ./ res.stderror
+# calculate z-value
+res[:, :zvalue] = res.estimate ./ res.stderror
 ```
 
-We obtained Walds t, but how to translate them to a p-value?
+We obtained Walds z, but how to translate them to a p-value?
 
-Determining the necessary degrees of freedom for the t-distribution is a complex issue with much debate surrounding it.
+Determining the necessary degrees of freedom for the z/t-distribution is a complex issue with much debate surrounding it.
 One approach is to use the number of subjects as an upper bound for the p-value (your df will be between $n_{subject}$ and $\sum{n_{trials}}$).
 
 ```@example Main
@@ -80,7 +80,7 @@ Plug it into the t-distribution.
 
 ```@example Main
 using Distributions
-res.pvalue = pdf.(TDist(df),res.tvalue)
+res.pvalue = pdf.(TDist(df),res.zvalue)
 ```
 
 ## Comparison of methods
@@ -92,11 +92,11 @@ df = DataFrame(:walds => res[res.coefname.=="B: b_tiny", :pvalue], :lrt => pvals
 f = Figure()
 
 scatter(f[1,1],times,res[res.coefname .== "B: b_tiny",:estimate],axis=(;xlabel="time",title="coef: B:b_tiny"))
-scatter(f[1,2],df.walds,df.lrt,axis=(;title="walds-t pvalue",ylabel="LRT pvalue"))
-scatter(f[2,1],times,df.walds,axis=(;title="walds-t pvalue",xlabel="time"))
+scatter(f[1,2],df.walds,df.lrt,axis=(;xlabel="walds-z pvalue",ylabel="LRT pvalue"))
+scatter(f[2,1],times,df.walds,axis=(;title="walds-z pvalue",xlabel="time"))
 scatter(f[2,2],times,df.lrt,axis=(;title="lrt pvalue",xlabel="time"))
 
 f
 ```
 
-Look pretty similar! Note that the Walds-T is typically too liberal (LRT also, but to a lesser exted). Best is to use the forthcoming MixedModelsPermutations.jl or go the route via R and use KenwardRoger (data not yet published)
+Note that the Walds-z is typically too liberal (LRT also, but to a lesser exted). Best is to use the forthcoming MixedModelsPermutations.jl or go the route via R and use KenwardRogers (data not yet published)

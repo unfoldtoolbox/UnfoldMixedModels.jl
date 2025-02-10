@@ -62,7 +62,7 @@ $(SIGNATURES)
 Unfold-Method: return pvalues of likelihoodratiotests, typically calculated:
 
 # Examples
-julia> pvalues(likelihoodratiotest(m1,m2))
+julia> pvalue(likelihoodratiotest(m1,m2))
 
 where m1/m2 are UnfoldLinearMixedModel's
 
@@ -76,7 +76,7 @@ Multiple channels are returned linearized at the moment, as we do not have acces
 julia> reshape(vcat(pvalues(likelihoodratiotest(m1,m2))...),ntimes,nchan)'
 
 """
-function pvalues(lrtvec::Vector{MixedModels.LikelihoodRatioTest})
+function StatsAPI.pvalue(lrtvec::Vector{MixedModels.LikelihoodRatioTest})
     [lrt.pvalues for lrt in lrtvec]
 end
 

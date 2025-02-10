@@ -10,6 +10,7 @@ using StaticArrays # for MixedModels extraction of parametrs (inherited from Mix
 import MixedModels: likelihoodratiotest, ranef
 using StatsModels
 import StatsModels: fit!, coef, coefnames, modelcols, modelmatrix
+import StatsAPI: pvalue
 using SparseArrays
 using DocStringExtensions
 using LinearAlgebra # LowerTriangular
@@ -17,6 +18,7 @@ using DataFrames
 using ProgressMeter
 using SimpleTraits
 using Reexport
+using StatsAPI
 
 include("typedefinitions.jl")
 include("basisfunctions.jl")
@@ -32,6 +34,6 @@ include("effects.jl")
 export DesignMatrixLinearMixedModel, DesignMatrixLinearMixedModelContinuousTime
 export LinearMixedModelFitCollection
 export UnfoldLinearMixedModel, UnfoldLinearMixedModelContinuousTime
-export likelihoodratiotest, pvalues
+export likelihoodratiotest, pvalue
 
 end
