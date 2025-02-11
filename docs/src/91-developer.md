@@ -7,9 +7,6 @@ If you want to make contributions to this package that involves code, then this 
 
 ## First time clone
 
-!!! tip "If you have writing rights"
-    If you have writing rights, you don't have to fork. Instead, simply clone and skip ahead. Whenever **upstream** is mentioned, use **origin** instead.
-
 If this is the first time you work with this repository, follow the instructions below to clone the repository.
 
 1. Fork this repo
@@ -22,6 +19,9 @@ If this is the first time you work with this repository, follow the instructions
 
 This will ensure that you have two remotes in your git: `origin` and `upstream`.
 You will create branches and push to `origin`, and you will fetch and update your local `main` branch from `upstream`.
+
+!!! tip "If you have writing rights in the GitHub repo"
+    If you have writing rights, you don't have to fork. Instead, simply clone and skip ahead. Whenever **upstream** is mentioned, use **origin** instead.
 
 ## Linting and formatting
 
@@ -68,7 +68,13 @@ pkg> activate .
 pkg> test
 ```
 
+!!! tip "Running single tests"
+   Instead fo running all tests, you can also run the `test/setup.jl` to load all required packages, and subsequently run single tests manually either by `include("test/test-fit.jl")` or by opening the file and running the specific test/testblock you want to run.
+
 ## Working on a new issue
+
+!!! important "Guides not Shackles"
+   We 100% prefer you to commit/submit/share what you have in a state you are comfortable with. If you want to follow (and learn) best-practices read ahead - but we also take your input as it is :)
 
 We try to keep a linear history in this repo, so it is important to keep your branches up-to-date.
 
@@ -98,7 +104,7 @@ We try to keep a linear history in this repo, so it is important to keep your br
 
 - If there is an associated issue, add the issue number.
 - If there is no associated issue, **and the changes are small**, add a prefix such as "typo", "hotfix", "small-refactor", according to the type of update.
-- If the changes are not small and there is no associated issue, then create the issue first, so we can properly discuss the changes.
+- If the changes are not small and there is no associated issue, then either create an issue first, or discuss in another channel with the maintainers.
 - Use dash separated imperative wording related to the issue (e.g., `14-add-tests`, `15-fix-model`, `16-remove-obsolete-files`).
 
 ### Commit message
@@ -110,11 +116,8 @@ We try to keep a linear history in this repo, so it is important to keep your br
 
 ### Before creating a pull request
 
-!!! tip "Atomic git commits"
-    Try to create "atomic git commits" (recommended reading: [The Utopic Git History](https://blog.esciencecenter.nl/the-utopic-git-history-d44b81c09593)).
-
-- Make sure the tests pass.
-- Make sure the pre-commit tests pass.
+- Ideally: locally run the tests.
+- Ideally: Make sure the pre-commit tests pass.
 - Fetch any `main` updates from upstream and rebase your branch, if necessary:
 
   ```bash
