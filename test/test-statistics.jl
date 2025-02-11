@@ -15,7 +15,7 @@
     m1 = fit(UnfoldModel, [Any => (f1, times)], evts, data)
 
     uf_lrt = likelihoodratiotest(data, m0, m1)
-    uf_pval = reshape(vcat(pvalues(uf_lrt)...), size(data, 2), 2)'
+    uf_pval = reshape(vcat(pvalue(uf_lrt)...), size(data, 2), 2)'
     @test uf_pval[1, :] == uf_pval[2, :]
 
     #---
