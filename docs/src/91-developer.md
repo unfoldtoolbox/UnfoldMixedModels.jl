@@ -23,6 +23,9 @@ You will create branches and push to `origin`, and you will fetch and update you
 !!! tip "If you have writing rights in the GitHub repo"
     If you have writing rights, you don't have to fork. Instead, simply clone and skip ahead. Whenever **upstream** is mentioned, use **origin** instead.
 
+!!! tip "`dev` command`
+    You can also recommend to use `]dev --local UnfoldMixedModels.jl` to clone the package to `./dev/UnfoldMixedModels` and add automatically add it to your julia project environment. You could also `]dev --local <https://link.com/myFork/UnfoldMixedModels.jl/`>
+
 ## Linting and formatting
 
 Install a plugin on your editor to use [EditorConfig](https://editorconfig.org).
@@ -74,7 +77,7 @@ pkg> test
 ## Working on a new issue
 
 !!! important "Guides not Shackles"
-   We 100% prefer you to commit/submit/share what you have in a state you are comfortable with. If you want to follow (and learn) best-practices read ahead - but we also take your input as it is :)
+    We 100% prefer you to commit/submit/share what you have in a state you are comfortable with. If you want to follow (and learn) best-practices read ahead - but we also take your input as it is :)
 
 We try to keep a linear history in this repo, so it is important to keep your branches up-to-date.
 
