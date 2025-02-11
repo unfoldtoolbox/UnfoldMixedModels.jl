@@ -57,7 +57,7 @@ nothing #hide
 ### 2. Intermediate topics
 
 📌 Goal: Extract statistics and cluster permutation tests
-🔗 [How To get P-Values for Mass-Univariate LMM](@ref lmm_overlap) | [LMM Cluster Permutation tests](UnfoldStats.jl)
+🔗 [How To get P-Values for Mass-Univariate LMM](@ref lmm_overlap) | [LMM Cluster Permutation tests](https://github.com/unfoldtoolbox/UnfoldStats.jl)
 
 We further recommend to skim this online book (from the authors of MixedModels.jl): [embraceuncertaintybook.com/](https://embraceuncertaintybook.com/)
 
