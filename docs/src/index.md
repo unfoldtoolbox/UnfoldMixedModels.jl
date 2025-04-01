@@ -9,8 +9,6 @@ This is an standalone-addon to `Unfold.jl` with similar syntax, but optimized fo
 
 ```@raw html
 <div style="width:60%; margin: auto;">
-
-<img src="assets/UnfoldSim_features_animation.gif"/>
 </div>
 ```
 
@@ -46,17 +44,17 @@ nothing #hide
 
 ### 0. First first steps
 
-📌 Goal: Familiarize yourself with rERP Unfold.jl fitting & MixedModels.jl
+📌 Goal: Familiarize yourself with rERP Unfold.jl fitting & MixedModels.jl /
 🔗 [Unfold.jl Quickstart](https://unfoldtoolbox.github.io/Unfold.jl/stable/tutorials/lm_mu/) | [MixedModels.jl](https://juliastats.org/MixedModels.jl/dev/constructors/)
 
 ### 1. First steps
 
-📌 Goal: Learn to fit a mass univariate Linear Mixed Model
+📌 Goal: Learn to fit a mass univariate Linear Mixed Model /
 🔗 [Mass Univariate Linear Mixed Models](@ref lmm_massunivariate)
 
 ### 2. Intermediate topics
 
-📌 Goal: Extract statistics and cluster permutation tests
+📌 Goal: Extract statistics and cluster permutation tests /
 🔗 [How To get P-Values for Mass-Univariate LMM](@ref lmm_overlap) | [LMM Cluster Permutation tests](https://github.com/unfoldtoolbox/UnfoldStats.jl)
 
 We further recommend to skim this online book (from the authors of MixedModels.jl): [embraceuncertaintybook.com/](https://embraceuncertaintybook.com/)
