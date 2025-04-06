@@ -10,7 +10,7 @@ This is an standalone-addon to `Unfold.jl` with similar syntax, but optimized fo
 ```@raw html
 <div style="width:60%; margin: auto;">
 
-<img src="assets/UnfoldSim_features_animation.gif"/>
+<img src="https://cloud.s-ccs.de/public.php/dav/files/D5MmD9aJpX6Wa9g"/>
 </div>
 ```
 
