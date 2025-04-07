@@ -8,7 +8,8 @@ Welcome to [UnfoldMixedModels.jl](https://github.com/unfoldtoolbox/UnfoldMixedMo
 This is an standalone-addon to `Unfold.jl` with similar syntax, but optimized for LMMs / Hierarchical Models.
 
 ```@raw html
-<div style="width:60%; margin: auto;">
+<div style="width:80%; margin: auto;">
+<img src="https://cloud.s-ccs.de/public.php/dav/files/D5MmD9aJpX6Wa9g"/>
 </div>
 ```
 
