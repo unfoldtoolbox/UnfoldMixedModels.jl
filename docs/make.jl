@@ -44,4 +44,4 @@ makedocs(;
     ],
 )
 
-deploydocs(; repo = "github.com/unfoldtoolbox/UnfoldMixedModels.jl")
+deploydocs(; repo = "github.com/unfoldtoolbox/UnfoldMixedModels.jl",push_preview = true)
