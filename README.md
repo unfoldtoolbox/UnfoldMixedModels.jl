@@ -2,8 +2,8 @@
 
 
 
-[![Stable Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://unfoldtoolbox.github.io/UnfoldMixedModels.jl/stable)
-[![In development documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://unfoldtoolbox.github.io/UnfoldMixedModels.jl/dev)
+[![Stable Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://unfoldtoolbox.github.io/UnfoldDocs/UnfoldMixedModels.jl/stable)
+[![In development documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://unfoldtoolbox.github.io/UnfoldDocs/UnfoldMixedModels.jl/dev)
 [![Build Status](https://github.com/unfoldtoolbox/UnfoldMixedModels.jl/workflows/Test/badge.svg)](https://github.com/unfoldtoolbox/UnfoldMixedModels.jl/actions)
 [![Test workflow status](https://github.com/unfoldtoolbox/UnfoldMixedModels.jl/actions/workflows/Test.yml/badge.svg?branch=main)](https://github.com/unfoldtoolbox/UnfoldMixedModels.jl/actions/workflows/Test.yml?query=branch%3Amain)
 [![Lint workflow Status](https://github.com/unfoldtoolbox/UnfoldMixedModels.jl/actions/workflows/Lint.yml/badge.svg?branch=main)](https://github.com/unfoldtoolbox/UnfoldMixedModels.jl/actions/workflows/Lint.yml?query=branch%3Amain)
@@ -25,7 +25,7 @@ This kind of modelling is also known as encoding modeling, linear deconvolution,
 
 ### 🐍Python User?
 
-We clearly recommend Julia 😉 - but [Python users can use juliacall/Unfold directly from python!](https://unfoldtoolbox.github.io/Unfold.jl/dev/generated/HowTo/juliacall_unfold/)
+We clearly recommend Julia 😉 - but [Python users can use juliacall/Unfold directly from python!](https://unfoldtoolbox.github.io/UnfoldDocs/Unfold.jl/dev/generated/HowTo/juliacall_unfold/)
 
 ### Julia installation
 
@@ -55,11 +55,11 @@ Pkg.add("UnfoldMixedModels")
 
 ## Usage
 
-Please check out [the documentation](https://unfoldtoolbox.github.io/UnfoldMixedModels.jl) for extensive tutorials, explanations and more!
+Please check out [the documentation](https://unfoldtoolbox.github.io/UnfoldDocs/UnfoldMixedModels.jl) for extensive tutorials, explanations and more!
 
 ### Tipp on Docs
 
-You can read the docs online: [![Stable Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://unfoldtoolbox.github.io/UnfoldMixedModels.jl/stable)  - or use the `?fit`, `?effects` julia-REPL feature. To filter docs, use e.g. `?fit(::UnfoldMixedModel)`
+You can read the docs online: [![Stable Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://unfoldtoolbox.github.io/UnfoldDocs/UnfoldMixedModels.jl/stable)  - or use the `?fit`, `?effects` julia-REPL feature. To filter docs, use e.g. `?fit(::UnfoldMixedModel)`
 
 Here is a quick overview on what to expect.
 
