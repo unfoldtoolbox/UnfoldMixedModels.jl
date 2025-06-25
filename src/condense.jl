@@ -28,13 +28,12 @@ random_effect_groupings(t::Vector) = vcat(random_effect_groupings.(t)...)
 This function reorders a MixedModels.tidyσs output, according to the formula and not according to the largest RandomGrouping.
 
 """
-function reorder_tidyσs(t, f)
+function reorder_tidyσs(t, forms)
     #@debug typeof(f)
     # get the order from the formula, this is the target
-    f_order = random_effect_groupings(f) # formula order
-    #@debug f_order
+    f_order = random_effect_groupings(forms) # formula order
     f_order = vcat(f_order...)
-    #@debug f_order
+    @debug f_order
 
     # find the fixefs
     fixef_ix = isnothing.(f_order)
@@ -42,15 +41,31 @@ function reorder_tidyσs(t, f)
 
 
     f_order = string.(f_order[.!fixef_ix])
+    @debug fixef_ix
+    @debug f_order
+    @debug coefnames(forms)
 
-    f_name = vcat(coefnames(f)...)[.!fixef_ix]
+    #f_name = vcat(coefnames(forms)...)[.!fixef_ix]
+
+    f_name = vcat([coefnames(f.rhs[2:end]) for f in forms]...)
+    f_order = string.(
+        vcat(
+            [
+                repeat([rhs.rhs.sym], length(coefnames(rhs.lhs.terms))) for f in forms
+                for rhs in f.rhs[2:end]
+            ]...,
+        ),
+    )
+
+    @debug f_name
 
     # get order from tidy object
     t_order = [string(i.group) for i in t if i.iter == 1]
     t_name = [string(i.column) for i in t if i.iter == 1]
 
     # combine for formula and tidy output the group + the coefname
-    #@debug f_order
+    @debug "f" f_order f_name
+    @debug "t" t_order t_name
     #@debug f_name
     f_comb = f_order .* f_name
     t_comb = t_order .* t_name
@@ -68,7 +83,7 @@ function reorder_tidyσs(t, f)
     # repeat and build the index for all timepoints
     reorder_ix_all = repeat(reorder_ix, length(t) ÷ length(reorder_ix))
     for k = 1:length(reorder_ix):length(t)
-        reorder_ix_all[k:k+length(reorder_ix)-1] .+= (k - 1)
+        reorder_ix_all[k:(k+length(reorder_ix)-1)] .+= (k - 1)
     end
 
     return t[reorder_ix_all]
