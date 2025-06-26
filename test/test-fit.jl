@@ -240,8 +240,8 @@ end
     @test all(last(res.coefname, 8) .== "(Intercept)")
 
     # test more complex formulas
-    fA0 = @formula 0 ~ 1 + zerocorr(1 + C | subject)
-    fA1 = @formula 0 ~ 1 + B +C + zerocorr(1 + C | subject2)
+    fA0 = @formula (0 ~ 1 + zerocorr(1 + C | subject))
+    fA1 = @formula (0 ~ 1 + B + C + zerocorr(1 + C | subject2))
     evts.C = rand(StableRNG(1), ["a", "b", "c"], size(evts, 1))
     m = fit(
         UnfoldModel,
