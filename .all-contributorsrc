@@ -1,5 +1,22 @@
 {
-  "projectName": "UnfoldMixedModels",
+  "projectName": "UnfoldMixedModels.jl",
   "projectOwner": "unfoldtoolbox",
-  "files": ["README.md", "docs/src/index.md"]
+  "files": [
+    "README.md",
+    "docs/src/index.md"
+  ],
+  "commitType": "docs",
+  "commitConvention": "angular",
+  "contributorsPerLine": 7,
+  "contributors": [
+    {
+      "login": "alx-mor",
+      "name": "Alexandra M",
+      "avatar_url": "https://avatars.githubusercontent.com/u/43203393?v=4",
+      "profile": "https://github.com/Alx-mor",
+      "contributions": [
+        "bug"
+      ]
+    }
+  ]
 }
