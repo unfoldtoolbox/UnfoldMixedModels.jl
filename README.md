@@ -115,6 +115,7 @@ You are very welcome to raise issues and start pull requests!
   <tbody>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Alx-mor"><img src="https://avatars.githubusercontent.com/u/43203393?v=4?s=100" width="100px;" alt="Alexandra M"/><br /><sub><b>Alexandra M</b></sub></a><br /><a href="#bug-alx-mor" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://www.phillipalday.com"><img src="https://avatars.githubusercontent.com/u/1677783?v=4?s=100" width="100px;" alt="Phillip Alday"/><br /><sub><b>Phillip Alday</b></sub></a><br /><a href="#code-palday" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
