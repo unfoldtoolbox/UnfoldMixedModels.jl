@@ -14,11 +14,15 @@ MixedModels.tidyβ(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinu
     random_effect_groupings(t::MixedModels.AbstractReTerm)
 Returns the random effect grouping term (rhs), similar to coefnames, which returns the left hand sides
 """
-random_effect_groupings(t::AbstractTerm) = repeat([nothing], length(coefnames(t.terms)))
+function _coefnames(t)
+    c = coefnames(t)
+    return isa(c, Vector) ? c : [c]
+end
+random_effect_groupings(t::AbstractTerm) = repeat([nothing], length(_coefnames(t.terms)))
 random_effect_groupings(t::Unfold.TimeExpandedTerm) =
     repeat(random_effect_groupings(t.term), length(Unfold.colnames(t.basisfunction)))
 random_effect_groupings(t::MixedModels.AbstractReTerm) =
-    repeat([t.rhs.sym], length(coefnames(t.lhs)))
+    repeat([t.rhs.sym], length(_coefnames(t.lhs)))
 
 random_effect_groupings(f::FormulaTerm) = vcat(random_effect_groupings.(f.rhs)...)
 random_effect_groupings(t::Vector) = vcat(random_effect_groupings.(t)...)

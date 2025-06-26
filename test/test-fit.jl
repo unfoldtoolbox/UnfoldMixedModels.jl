@@ -132,10 +132,9 @@ end
     evts1 = evts[evts.A .== "a_small", :]
     evts2 = evts[evts.A .== "a_big", :]
 
-    f0_lmm = @formula 0 ~ 1 + B + (1 | subject) + (1 | subjectB)
-    @time m_tum = coeftable(
-        fit(UnfoldModel, f0_lmm, evts, data, basisfunction; show_progress = false),
-    )
+    f0_lmm = @formula 0 ~ 1 + B + (1 | subject) + (1 + C | subjectB)
+    @time m = fit(UnfoldModel, f0_lmm, evts, data, basisfunction; show_progress = false)
+    @time m_tum = coeftable(m)
 
 
     f1_lmm = @formula 0 ~ 1 + B + (1 | subject)
