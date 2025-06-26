@@ -36,7 +36,7 @@ end
 
     transform!(evts, :subject => categorical => :subject)
 
-    f = @formula 0 ~ 1 + A + C + (1 + A + C | subject)
+    f = @formula 0 ~ 1 + A + B + (1 + A + B | subject)
     #f  = @formula 0~1 + (1|subject)
 
 
@@ -175,6 +175,35 @@ end
         ),
     )
 
+
+    #----
+    # # test #13, 2x3 design
+
+    f = @formula 0 ~ 1 + A + C + (1 + A + C | subject)
+    #f  = @formula 0~1 + (1|subject)
+
+
+
+    # cut the data into epochs
+    # TODO This ignores subject bounds
+    data_e, times = Unfold.epoch(data = data, tbl = evts, τ = (-1.0, 1.9), sfreq = 10)
+    data_missing_e, times =
+        Unfold.epoch(data = data_missing, tbl = evts, τ = (-1.0, 1.9), sfreq = 10)
+    evts_e, data_e = Unfold.drop_missing_epochs(copy(evts), data_e)
+    evts_missing_e, data_missing_e = Unfold.drop_missing_epochs(copy(evts), data_missing_e)
+
+    ######################
+    ##  Mass Univariate Mixed
+    @time m_mum = fit(
+        UnfoldModel,
+        f,
+        evts_e,
+        data_e,
+        times,
+        contrasts = Dict(:A => EffectsCoding(), :B => EffectsCoding()),
+        show_progress = false,
+    )
+    df = Unfold.coeftable(m_mum)
 end
 ## Condense check for multi channel, multi
 @testset "LMM multi channel, multi basisfunction" begin
@@ -213,7 +242,7 @@ end
 
     # test more complex formulas
     fA0 = @formula 0 ~ 1 + zerocorr(1 + C | subject)
-    fA1 = @formula 0 ~ 1 + B + zerocorr(1 + C | subject2)
+    fA1 = @formula 0 ~ 1 + B +C + zerocorr(1 + C | subject2)
     evts.C = rand(StableRNG(1), ["a", "b", "c"], size(evts, 1))
     m = fit(
         UnfoldModel,
