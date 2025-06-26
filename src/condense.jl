@@ -10,15 +10,26 @@ end
 MixedModels.tidyβ(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime}) =
     MixedModels.tidyβ(modelfit(m))
 
+
+"""
+helper function because `coefnames` returns an array only if number of coefs is larger than 1
+"""
+function _coefnames(t)
+    c = coefnames(t)
+    return isa(c, Vector) ? c : [c]
+end
+
+
+
 """
     random_effect_groupings(t::MixedModels.AbstractReTerm)
 Returns the random effect grouping term (rhs), similar to coefnames, which returns the left hand sides
 """
-random_effect_groupings(t::AbstractTerm) = repeat([nothing], length(t.terms))
+random_effect_groupings(t::AbstractTerm) = repeat([nothing], length(_coefnames(t.terms)))
 random_effect_groupings(t::Unfold.TimeExpandedTerm) =
     repeat(random_effect_groupings(t.term), length(Unfold.colnames(t.basisfunction)))
 random_effect_groupings(t::MixedModels.AbstractReTerm) =
-    repeat([t.rhs.sym], length(t.lhs.terms))
+    repeat([t.rhs.sym], length(_coefnames(t.lhs)))
 
 random_effect_groupings(f::FormulaTerm) = vcat(random_effect_groupings.(f.rhs)...)
 random_effect_groupings(t::Vector) = vcat(random_effect_groupings.(t)...)
@@ -32,9 +43,9 @@ function reorder_tidyσs(t, f)
     #@debug typeof(f)
     # get the order from the formula, this is the target
     f_order = random_effect_groupings(f) # formula order
-    #@debug f_order
+    @debug f_order
     f_order = vcat(f_order...)
-    #@debug f_order
+    @debug f_order
 
     # find the fixefs
     fixef_ix = isnothing.(f_order)
@@ -42,6 +53,8 @@ function reorder_tidyσs(t, f)
 
 
     f_order = string.(f_order[.!fixef_ix])
+    @debug fixef_ix
+    @debug coefnames(f)
 
     f_name = vcat(coefnames(f)...)[.!fixef_ix]
 
@@ -50,8 +63,8 @@ function reorder_tidyσs(t, f)
     t_name = [string(i.column) for i in t if i.iter == 1]
 
     # combine for formula and tidy output the group + the coefname
-    #@debug f_order
-    #@debug f_name
+    @debug "f" f_order f_name
+    @debug "t" t_order t_name
     f_comb = f_order .* f_name
     t_comb = t_order .* t_name
 
@@ -68,7 +81,7 @@ function reorder_tidyσs(t, f)
     # repeat and build the index for all timepoints
     reorder_ix_all = repeat(reorder_ix, length(t) ÷ length(reorder_ix))
     for k = 1:length(reorder_ix):length(t)
-        reorder_ix_all[k:k+length(reorder_ix)-1] .+= (k - 1)
+        reorder_ix_all[k:(k+length(reorder_ix)-1)] .+= (k - 1)
     end
 
     return t[reorder_ix_all]
