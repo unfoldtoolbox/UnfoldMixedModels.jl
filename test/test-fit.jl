@@ -62,7 +62,10 @@ end
     )
     df = Unfold.coeftable(m_mum)
     @test isapprox(
-        df[(df.channel.==1).&(df.coefname.=="A: a_small").&(df.time.==0.0), :estimate],
+        df[
+            (df.channel .== 1) .& (df.coefname .== "A: a_small") .& (df.time .== 0.0),
+            :estimate,
+        ],
         [-0.02, 0.054],
         atol = 0.01,
     )
@@ -81,7 +84,10 @@ end
     )
     df = coeftable(m_mum)
     @test isapprox(
-        df[(df.channel.==1).&(df.coefname.=="A: a_small").&(df.time.==0.0), :estimate],
+        df[
+            (df.channel .== 1) .& (df.coefname .== "A: a_small") .& (df.time .== 0.0),
+            :estimate,
+        ],
         [0.031, 0.05],
         atol = 0.1,
     )
@@ -101,7 +107,10 @@ end
     )
     df = coeftable(m_tum)
     @test isapprox(
-        df[(df.channel.==1).&(df.coefname.=="A: a_small").&(df.time.==0.0), :estimate],
+        df[
+            (df.channel .== 1) .& (df.coefname .== "A: a_small") .& (df.time .== 0.0),
+            :estimate,
+        ],
         [-0.03, 0.064],
         atol = 0.1,
     )
@@ -120,8 +129,8 @@ end
 
 
     evts.subjectB = evts.subject
-    evts1 = evts[evts.A.=="a_small", :]
-    evts2 = evts[evts.A.=="a_big", :]
+    evts1 = evts[evts.A .== "a_small", :]
+    evts2 = evts[evts.A .== "a_big", :]
 
     f0_lmm = @formula 0 ~ 1 + B + (1 | subject) + (1 | subjectB)
     @time m_tum = coeftable(
@@ -147,7 +156,10 @@ end
     df = coeftable(r)
 
     @test isapprox(
-        df[(df.channel.==1).&(df.coefname.=="B: b_tiny").&(df.time.==0.0), :estimate],
+        df[
+            (df.channel .== 1) .& (df.coefname .== "B: b_tiny") .& (df.time .== 0.0),
+            :estimate,
+        ],
         [0.65, 0.69],
         rtol = 0.1,
     )
@@ -198,6 +210,22 @@ end
 
     @test all(last(.!isnothing.(res.group), 8))
     @test all(last(res.coefname, 8) .== "(Intercept)")
+
+    # test more complex formulas
+    fA0 = @formula 0 ~ 1 + zerocorr(1 + C | subject)
+    fA1 = @formula 0 ~ 1 + B + zerocorr(1 + C | subject2)
+    evts.C = rand(StableRNG(1), ["a", "b", "c"], size(evts, 1))
+    m = fit(
+        UnfoldModel,
+        ["a_small" => (fA0, bA0), "a_big" => (fA1, bA1)],
+        evts,
+        data;
+        eventcolumn = "A",
+        show_progress = false,
+    )
+
+    res = coeftable(m)
+
 end
 
 
@@ -216,8 +244,7 @@ end
         [
             Any => (
                 @formula(
-                    0 ~
-                        1 + A + B + zerocorr(1 + B + A | subject) + zerocorr(1 + B | item)
+                    0 ~ 1 + A + B + zerocorr(1 + B + A | subject) + zerocorr(1 + B | item)
                 ),
                 range(0, 1, length = size(data, 1)),
             ),
@@ -225,8 +252,7 @@ end
         [
             Any => (
                 @formula(
-                    0 ~
-                        1 + A + B + zerocorr(1 + A + B | subject) + zerocorr(1 + B | item)
+                    0 ~ 1 + A + B + zerocorr(1 + A + B | subject) + zerocorr(1 + B | item)
                 ),
                 range(0, 1, length = size(data, 1)),
             ),

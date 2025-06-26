@@ -18,7 +18,7 @@ random_effect_groupings(t::AbstractTerm) = repeat([nothing], length(t.terms))
 random_effect_groupings(t::Unfold.TimeExpandedTerm) =
     repeat(random_effect_groupings(t.term), length(Unfold.colnames(t.basisfunction)))
 random_effect_groupings(t::MixedModels.AbstractReTerm) =
-    repeat([t.rhs.sym], length(t.lhs.terms))
+    repeat([t.rhs.sym], length(coefnames(t.lhs)))
 
 random_effect_groupings(f::FormulaTerm) = vcat(random_effect_groupings.(f.rhs)...)
 random_effect_groupings(t::Vector) = vcat(random_effect_groupings.(t)...)
@@ -28,10 +28,11 @@ random_effect_groupings(t::Vector) = vcat(random_effect_groupings.(t)...)
 This function reorders a MixedModels.tidyσs output, according to the formula and not according to the largest RandomGrouping.
 
 """
-function reorder_tidyσs(t, forms)
+function reorder_tidyσs(t, f)
     #@debug typeof(f)
     # get the order from the formula, this is the target
-    f_order = random_effect_groupings(forms) # formula order
+    f_order = random_effect_groupings(f) # formula order
+    @debug f_order
     f_order = vcat(f_order...)
     @debug f_order
 
@@ -42,22 +43,9 @@ function reorder_tidyσs(t, forms)
 
     f_order = string.(f_order[.!fixef_ix])
     @debug fixef_ix
-    @debug f_order
-    @debug coefnames(forms)
+    @debug coefnames(f)
 
-    #f_name = vcat(coefnames(forms)...)[.!fixef_ix]
-
-    f_name = vcat([coefnames(f.rhs[2:end]) for f in forms]...)
-    f_order = string.(
-        vcat(
-            [
-                repeat([rhs.rhs.sym], length(coefnames(rhs.lhs.terms))) for f in forms
-                for rhs in f.rhs[2:end]
-            ]...,
-        ),
-    )
-
-    @debug f_name
+    f_name = vcat(coefnames(f)...)[.!fixef_ix]
 
     # get order from tidy object
     t_order = [string(i.group) for i in t if i.iter == 1]
@@ -66,7 +54,6 @@ function reorder_tidyσs(t, forms)
     # combine for formula and tidy output the group + the coefname
     @debug "f" f_order f_name
     @debug "t" t_order t_name
-    #@debug f_name
     f_comb = f_order .* f_name
     t_comb = t_order .* t_name
 
