@@ -24,7 +24,7 @@ end
     subj_idx = [parse(Int, split(string(s), 'S')[2]) for s in evts.subject]
     evts.latency .+= size(data, 1) .* (subj_idx .- 1)
 
-
+    evts.C = rand(StableRNG(1), ["a", "b", "c"], size(evts, 1))
     data = reshape(data, 1, :)
     #append!(data, zeros(1000))
     data = vcat(data, data)
@@ -36,7 +36,7 @@ end
 
     transform!(evts, :subject => categorical => :subject)
 
-    f = @formula 0 ~ 1 + A + B + (1 + A + B | subject)
+    f = @formula 0 ~ 1 + A + C + (1 + A + C | subject)
     #f  = @formula 0~1 + (1|subject)
 
 
