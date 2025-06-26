@@ -10,14 +10,21 @@ end
 MixedModels.tidyβ(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime}) =
     MixedModels.tidyβ(modelfit(m))
 
+
 """
-    random_effect_groupings(t::MixedModels.AbstractReTerm)
-Returns the random effect grouping term (rhs), similar to coefnames, which returns the left hand sides
+helper function because `coefnames` returns an array only if number of coefs is larger than 1
 """
 function _coefnames(t)
     c = coefnames(t)
     return isa(c, Vector) ? c : [c]
 end
+
+
+
+"""
+    random_effect_groupings(t::MixedModels.AbstractReTerm)
+Returns the random effect grouping term (rhs), similar to coefnames, which returns the left hand sides
+"""
 random_effect_groupings(t::AbstractTerm) = repeat([nothing], length(_coefnames(t.terms)))
 random_effect_groupings(t::Unfold.TimeExpandedTerm) =
     repeat(random_effect_groupings(t.term), length(Unfold.colnames(t.basisfunction)))
