@@ -13,26 +13,26 @@ m0 = fit(UnfoldModel,[Any=&gt;(f0,times)],evts,data_epoch);
 m1 = fit(UnfoldModel,[Any=&gt;(f1,times)],evts,data_epoch);</code></pre><h2 id="Likelihood-ratio"><a class="docs-heading-anchor" href="#Likelihood-ratio">Likelihood ratio</a><a id="Likelihood-ratio-1"></a><a class="docs-heading-anchor-permalink" href="#Likelihood-ratio" title="Permalink"></a></h2><pre><code class="language-julia hljs">uf_lrt = likelihoodratiotest(data_epoch, m0, m1)
 uf_lrt[1]</code></pre><table><tr><th align="left"></th><th align="right">model-dof</th><th align="right">deviance</th><th align="right">χ²</th><th align="right">χ²-dof</th><th align="left">P&#40;&gt;χ²&#41;</th></tr><tr><td align="left">&#91;38;2;144;202;249m1&#91;39m &#91;38;2;239;83;80m&#43;&#91;39m A &#91;38;2;239;83;80m&#43;&#91;39m &#40;&#91;38;2;144;202;249m1&#91;39m &#91;38;2;239;83;80m&#43;&#91;39m A &#91;38;2;239;83;80m|&#91;39m subject&#41;</td><td align="right">6</td><td align="right">8012</td><td align="right"> </td><td align="right"> </td><td align="left"> </td></tr><tr><td align="left">&#91;38;2;144;202;249m1&#91;39m &#91;38;2;239;83;80m&#43;&#91;39m A &#91;38;2;239;83;80m&#43;&#91;39m B &#91;38;2;239;83;80m&#43;&#91;39m &#40;&#91;38;2;144;202;249m1&#91;39m &#91;38;2;239;83;80m&#43;&#91;39m A &#91;38;2;239;83;80m|&#91;39m subject&#41;</td><td align="right">7</td><td align="right">8011</td><td align="right">1</td><td align="right">1</td><td align="left">0.3996</td></tr></table>
 <p>As you can see, we have some likelihood ratio outcomes, exciting!</p><h3 id="Extract-p-values"><a class="docs-heading-anchor" href="#Extract-p-values">Extract p-values</a><a id="Extract-p-values-1"></a><a class="docs-heading-anchor-permalink" href="#Extract-p-values" title="Permalink"></a></h3><pre><code class="language-julia hljs">pvalue(uf_lrt)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">100-element Vector{Vector{Float64}}:
- [0.39964251754876706]
- [0.4019640858609401]
- [0.4074237173863722]
- [0.4070454519554564]
- [0.42228971014118033]
- [0.483155056260971]
- [0.6339437552710293]
+ [0.3996425175484649]
+ [0.40196408585819776]
+ [0.4074237175004203]
+ [0.40704545226920535]
+ [0.42228971017263844]
+ [0.48312782541029287]
+ [0.633943699719444]
  [NaN]
  [NaN]
  [NaN]
  ⋮
- [0.34292883003473407]
- [0.33515969561309156]
- [0.33325396532570495]
- [0.3428036624385943]
- [0.3567742512609538]
- [0.37049189795207205]
- [0.38051461402659575]
- [0.3883891630406846]
- [0.39851721772119286]</code></pre><p>We have extracted the p-values and now need to make them usable.     The solution can be found in the documentation under <code>?pvalue</code>.</p><pre><code class="language-julia hljs">pvals_lrt = vcat(pvalue(uf_lrt)...)
+ [0.34292882767954785]
+ [0.33515969610122165]
+ [0.3332539651909206]
+ [0.34280369369041713]
+ [0.3567742510822409]
+ [0.370491896590915]
+ [0.3805148265525036]
+ [0.3883891621217195]
+ [0.39851721827367553]</code></pre><p>We have extracted the p-values and now need to make them usable.     The solution can be found in the documentation under <code>?pvalue</code>.</p><pre><code class="language-julia hljs">pvals_lrt = vcat(pvalue(uf_lrt)...)
 nchan = 1
 ntime = length(times)
 reshape(pvals_lrt, ntime, nchan)&#39; # note the last transpose via &#39; !</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1×100 adjoint(::Matrix{Float64}) with eltype Float64:
@@ -41,47 +41,47 @@ reshape(pvals_lrt, ntime, nchan)&#39; # note the last transpose via &#39; !</cod
 res = res[isnothing.(res.group), :]
 # calculate z-value
 res[:, :zvalue] = res.estimate ./ res.stderror</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">300-element Vector{Float64}:
-  4.446708326696426
-  4.437580860011641
-  4.446435058073349
-  4.492672997803976
+  4.446708325388545
+  4.437580860156354
+  4.44643506128382
+  4.492672998532069
   4.494599457419684
-  4.4880483252027075
-  4.439652303422133
-  4.45518635490581
-  4.623068236549389
-  4.663764726700654
+  4.488086932447166
+  4.43965253615817
+  4.455186355421181
+  4.6230682344635285
+  4.663764713009221
   ⋮
-  0.5870708293447756
-  0.43759939804174963
-  0.2172917074185397
-  0.025591530320948425
- -0.11195974844949615
- -0.28040792854804225
- -0.22668554132390997
- -0.2646530795209725
- -0.3492299276363734</code></pre><p>We obtained Walds z, but how to translate them to a p-value?</p><p>Determining the necessary degrees of freedom for the z/t-distribution is a complex issue with much debate surrounding it. One approach is to use the number of subjects as an upper bound for the p-value (your df will be between <span>$n_{subject}$</span> and <span>$\sum{n_{trials}}$</span>).</p><pre><code class="language-julia hljs">df = length(unique(evts.subject))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">40</code></pre><p>Plug it into the t-distribution.</p><pre><code class="language-julia hljs">using Distributions
+  0.5870708293438687
+  0.4375993980367266
+  0.21729170741846163
+  0.025591530317209583
+ -0.11195974844895415
+ -0.28040792854615815
+ -0.2266855340424317
+ -0.2646530795197567
+ -0.3492299276352142</code></pre><p>We obtained Walds z, but how to translate them to a p-value?</p><p>Determining the necessary degrees of freedom for the z/t-distribution is a complex issue with much debate surrounding it. One approach is to use the number of subjects as an upper bound for the p-value (your df will be between <span>$n_{subject}$</span> and <span>$\sum{n_{trials}}$</span>).</p><pre><code class="language-julia hljs">df = length(unique(evts.subject))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">40</code></pre><p>Plug it into the t-distribution.</p><pre><code class="language-julia hljs">using Distributions
 res.pvalue = pdf.(TDist(df),res.zvalue)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">300-element Vector{Float64}:
- 0.00010520592926163251
- 0.00010817494439425095
- 0.00010529365405567558
- 9.142141916777313e-5
+ 0.00010520592968131833
+ 0.00010817494434653676
+ 0.0001052936530246302
+ 9.14214189640491e-5
  9.088393516836884e-5
- 9.272440215982806e-5
- 0.00010749405443829126
- 0.00010251943544603832
- 6.122445474960627e-5
- 5.398423858898151e-5
+ 9.271345006595734e-5
+ 0.00010749397817247132
+ 0.00010251943528478021
+ 6.122445514401697e-5
+ 5.3984240877711125e-5
  ⋮
- 0.33251660178615255
- 0.3594809847897533
- 0.38698410798874533
- 0.39632387743397085
- 0.39391857391788004
- 0.38081351375847516
- 0.38615884540577883
- 0.3824900521283194
- 0.37247026276880874</code></pre><h2 id="Comparison-of-methods"><a class="docs-heading-anchor" href="#Comparison-of-methods">Comparison of methods</a><a id="Comparison-of-methods-1"></a><a class="docs-heading-anchor-permalink" href="#Comparison-of-methods" title="Permalink"></a></h2><p>Cool! Let&#39;s compare both methods of p-value calculation!</p><pre><code class="language-julia hljs">df = DataFrame(:walds =&gt; res[res.coefname.==&quot;B: b_tiny&quot;, :pvalue], :lrt =&gt; pvals_lrt)
+ 0.3325166017863325
+ 0.35948098479055934
+ 0.386984107988752
+ 0.39632387743400965
+ 0.3939185739179045
+ 0.380813513758681
+ 0.3861588460582715
+ 0.3824900521284453
+ 0.37247026276896283</code></pre><h2 id="Comparison-of-methods"><a class="docs-heading-anchor" href="#Comparison-of-methods">Comparison of methods</a><a id="Comparison-of-methods-1"></a><a class="docs-heading-anchor-permalink" href="#Comparison-of-methods" title="Permalink"></a></h2><p>Cool! Let&#39;s compare both methods of p-value calculation!</p><pre><code class="language-julia hljs">df = DataFrame(:walds =&gt; res[res.coefname.==&quot;B: b_tiny&quot;, :pvalue], :lrt =&gt; pvals_lrt)
 f = Figure()
 
 scatter(f[1,1],times,res[res.coefname .== &quot;B: b_tiny&quot;,:estimate],axis=(;xlabel=&quot;time&quot;,title=&quot;coef: B:b_tiny&quot;))
@@ -89,4 +89,4 @@ scatter(f[1,2],df.walds,df.lrt,axis=(;xlabel=&quot;walds-z pvalue&quot;,ylabel=&
 scatter(f[2,1],times,df.walds,axis=(;title=&quot;walds-z pvalue&quot;,xlabel=&quot;time&quot;))
 scatter(f[2,2],times,df.lrt,axis=(;title=&quot;lrt pvalue&quot;,xlabel=&quot;time&quot;))
 
-f</code></pre><img src="89aed2b0.png" alt="Example block output"/><p>Note that the Walds-z is typically too liberal (LRT also, but to a lesser exted). Best is to use the forthcoming MixedModelsPermutations.jl or go the route via R and use KenwardRogers (data not yet published)</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../tutorials/lmm_overlap/">« lmmERP (overlap correction)</a><a class="docs-footer-nextpage" href="../../references/types/">API: Types »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.10.1 on <span class="colophon-date" title="Monday 7 April 2025 11:48">Monday 7 April 2025</span>. Using Julia version 1.11.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+f</code></pre><img src="0a533ea2.png" alt="Example block output"/><p>Note that the Walds-z is typically too liberal (LRT also, but to a lesser exted). Best is to use the forthcoming MixedModelsPermutations.jl or go the route via R and use KenwardRogers (data not yet published)</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../tutorials/lmm_overlap/">« lmmERP (overlap correction)</a><a class="docs-footer-nextpage" href="../../references/types/">API: Types »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Thursday 26 June 2025 09:22">Thursday 26 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
