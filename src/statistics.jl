@@ -82,7 +82,7 @@ function StatsAPI.pvalue(lrtvec::Vector{MixedModels.LikelihoodRatioTest})
     [lrt.pvalues for lrt in lrtvec]
 end
 
-MixedModels.rePCA(m::UnfoldLinearMixedModel) = MixedModels.rePCA(m.y, m)
+
 
 function MixedModels.rePCA(data::AbstractArray, m::UnfoldLinearMixedModel)
     oneresult = MixedModels.rePCA(fake_lmm(data, m, 1))
