@@ -19,8 +19,10 @@ function fake_lmm(
     if N == 3
         time_ix = fcoll.fits[k].timeIX
         y = data[channel, time_ix, :]
-    else
+    elseif N == 2
         y = data[channel, :]
+    else
+        y = data
     end
     lmm = LinearMixedModel_wrapper(Unfold.formulas(m), y, mm[1])
 
@@ -82,14 +84,15 @@ end
 
 
 
-function MixedModels.rePCA(m::UnfoldLinearMixedModel)
-    oneresult = MixedModels.rePCA(fake_lmm(m, 1))
+function MixedModels.rePCA(data::AbstractArray, m::UnfoldLinearMixedModel)
+    oneresult = MixedModels.rePCA(fake_lmm(data, m, 1))
     emptyPCA = (;)
     for s in keys(oneresult)
         res = hcat(
             [
-                a[s] for
-                a in MixedModels.rePCA.(fake_lmm.(Ref(m), 1:length(modelfit(m).fits)))
+                a[s] for a in MixedModels.rePCA.(
+                    fake_lmm.(Ref(data), Ref(m), 1:length(modelfit(m).fits)),
+                )
             ]...,
         )
         newPCA = NamedTuple{(s,)}([res])

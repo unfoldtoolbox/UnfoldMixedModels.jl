@@ -1,3 +1,27 @@
+using UnfoldSim, Test
+@testset "rePCA" begin
+    data, evts = UnfoldSim.predef_eeg(10; n_items = 20, sfreq = 10, return_epoched = true)
+
+    data = reshape(data, 1, size(data, 1), :)
+    evts[!, :y] = data[1, 1, :]
+
+    times = range(0, 1, size(data, 2))
+
+    f0 = @formula 0 ~ 1 + condition + (1 | item) + (1 + continuous | subject)
+    f_MM = @formula y ~ 1 + condition + (1 | item) + (1 + continuous | subject)
+
+    m = fit(UnfoldModel, [Any => (f0, times)], evts, data)
+    m_MM = fit(LinearMixedModel, f_MM, evts)
+    repca_results = MixedModels.rePCA(data, m)
+
+    repca_lmm = MixedModels.rePCA(m_MM)
+
+    @test repca_results.subject[:, 1] ≈ repca_lmm.subject
+    @test repca_results.item[:, 1] ≈ repca_lmm.item
+
+
+
+end
 @testset "LMM LRT" begin
     data, evts = UnfoldSim.predef_eeg(10; n_items = 20, sfreq = 10, return_epoched = true)
     subj_idx = [parse(Int, split(string(s), 'S')[2]) for s in evts.subject]
