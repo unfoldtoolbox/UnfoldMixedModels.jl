@@ -137,7 +137,7 @@ function StatsModels.fit!(
             df,
             deepcopy(mm.λ),
             getfield.(mm.reterms, :inds),
-            copy(mm.optsum.lowerbd),
+            copy(MixedModels.lowerbd(mm)),
             NamedTuple{Symbol.(fnames(mm))}(map(t -> (t.cnames...,), mm.reterms)),
         ),
     )
@@ -234,9 +234,9 @@ function MixedModels.LinearMixedModel(y, Xs, form::Array, wts)
 
         form_combined =
             form_combined.lhs ~
-                MatrixTerm(form_combined.rhs[1] + f.rhs[1]) +
-                form_combined.rhs[2:end] +
-                f.rhs[2:end]
+            MatrixTerm(form_combined.rhs[1] + f.rhs[1]) +
+            form_combined.rhs[2:end] +
+            f.rhs[2:end]
     end
     #@debug typeof(form_combined)
     @debug typeof(y), typeof(Xs), typeof(wts)
