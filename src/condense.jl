@@ -45,6 +45,9 @@ end
 
 Convert MixedModels.allpars output to tidyρs format.
 Returns a vector of NamedTuples with fields (:iter, :group, :column1, :column2, :ρ).
+
+Note: This function parses correlation parameter names in the format "col1, col2" 
+as produced by MixedModels.allpars(). If the format changes upstream, this will need updating.
 """
 function _allpars_to_tidy_ρ(allpars)
     # Filter for ρ parameters
@@ -55,15 +58,19 @@ function _allpars_to_tidy_ρ(allpars)
     values = allpars.value[mask]
     
     # Convert to NamedTuple format like tidyρs
-    # names are in format "col1, col2"
+    # names are in format "col1, col2" as produced by MixedModels.allpars
     colnms = (:iter, :group, :column1, :column2, :ρ)
     T = eltype(values)
     result = NamedTuple{colnms,Tuple{Int,Symbol,Symbol,Symbol,T}}[]
     for (i, g, n, v) in zip(iters, groups, names, values)
-        # Parse "col1, col2" format
+        # Parse "col1, col2" format - note the comma-space delimiter
         cols = split(n, ", ")
         if length(cols) == 2
             push!(result, NamedTuple{colnms,Tuple{Int,Symbol,Symbol,Symbol,T}}((i, Symbol(g), Symbol(cols[1]), Symbol(cols[2]), v)))
+        else
+            # This should not happen with standard MixedModels.allpars output
+            # If it does, it indicates a format change or data issue
+            @warn "Unexpected correlation parameter name format: \"$n\" (expected \"col1, col2\")"
         end
     end
     return result
