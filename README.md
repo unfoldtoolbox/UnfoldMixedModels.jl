@@ -96,6 +96,10 @@ To fit any of the models, Unfold.jl offers a unified syntax:
 
 Contributions are very welcome. These could be typos, bugreports, feature-requests, speed-optimization, new solvers, better code, better documentation.
 
+### Benchmarks
+
+Performance benchmarks are available in the [`benchmark/`](benchmark/) directory. These compare different parameter extraction implementations to validate optimization choices. See the [benchmark README](benchmark/README.md) for usage instructions.
+
 ### How-to Contribute
 
 You are very welcome to raise issues and start pull requests!
