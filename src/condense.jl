@@ -63,7 +63,7 @@ function tidyρs(bsamp::LinearMixedModelFitCollection{T}) where {T}
                 # Compute correlations as dot products of normalized rows
                 for i in 2:k
                     for j in 1:(i-1)
-                        corr = sum(normalized[i, k] * normalized[j, k] for k in 1:i)
+                        corr = sum(normalized[i, m] * normalized[j, m] for m in 1:i)
                         push!(result, NamedTuple{colnms}((iter, grp, Symbol(cnames[i]), Symbol(cnames[j]), corr)))
                     end
                 end
@@ -201,7 +201,7 @@ function reorder_tidyρs(t, f)
     # If we found a different number of correlations, just return original order
     # This handles the complex case where formula order doesn't match
     if length(reorder_ix) != length(t_comb)
-        @debug "Warning: Could not fully reorder correlations, using original order"
+        @debug "Could not fully reorder correlations due to formula/tidy mismatch, using original order"
         return t
     end
     
