@@ -1,14 +1,88 @@
 
+"""
+    _allpars_to_tidy_β(allpars)
+
+Convert MixedModels.allpars output to tidyβ format.
+Returns a vector of NamedTuples with fields (:iter, :coefname, :β).
+"""
+function _allpars_to_tidy_β(allpars)
+    # Filter for β parameters
+    mask = allpars.type .== "β"
+    iters = allpars.iter[mask]
+    names = allpars.names[mask]
+    values = allpars.value[mask]
+    
+    # Convert to NamedTuple format like tidyβ
+    colnms = (:iter, :coefname, :β)
+    T = eltype(values)
+    return [NamedTuple{colnms,Tuple{Int,Symbol,T}}((i, Symbol(nm), v)) 
+            for (i, nm, v) in zip(iters, names, values)]
+end
+
+"""
+    _allpars_to_tidy_σ(allpars)
+
+Convert MixedModels.allpars output to tidyσs format.
+Returns a vector of NamedTuples with fields (:iter, :group, :column, :σ).
+"""
+function _allpars_to_tidy_σ(allpars)
+    # Filter for σ parameters (excluding residual)
+    mask = (allpars.type .== "σ") .& .!ismissing.(allpars.group) .& (allpars.group .!= "residual")
+    iters = allpars.iter[mask]
+    groups = allpars.group[mask]
+    columns = allpars.names[mask]
+    values = allpars.value[mask]
+    
+    # Convert to NamedTuple format like tidyσs
+    colnms = (:iter, :group, :column, :σ)
+    T = eltype(values)
+    return [NamedTuple{colnms,Tuple{Int,Symbol,Symbol,T}}((i, Symbol(g), Symbol(c), v)) 
+            for (i, g, c, v) in zip(iters, groups, columns, values)]
+end
+
+"""
+    _allpars_to_tidy_ρ(allpars)
+
+Convert MixedModels.allpars output to tidyρs format.
+Returns a vector of NamedTuples with fields (:iter, :group, :column1, :column2, :ρ).
+"""
+function _allpars_to_tidy_ρ(allpars)
+    # Filter for ρ parameters
+    mask = allpars.type .== "ρ"
+    iters = allpars.iter[mask]
+    groups = allpars.group[mask]
+    names = allpars.names[mask]
+    values = allpars.value[mask]
+    
+    # Convert to NamedTuple format like tidyρs
+    # names are in format "col1, col2"
+    colnms = (:iter, :group, :column1, :column2, :ρ)
+    T = eltype(values)
+    result = NamedTuple{colnms,Tuple{Int,Symbol,Symbol,Symbol,T}}[]
+    for (i, g, n, v) in zip(iters, groups, names, values)
+        # Parse "col1, col2" format
+        cols = split(n, ", ")
+        if length(cols) == 2
+            push!(result, NamedTuple{colnms,Tuple{Int,Symbol,Symbol,Symbol,T}}((i, Symbol(g), Symbol(cols[1]), Symbol(cols[2]), v)))
+        end
+    end
+    return result
+end
+
 function MixedModels.tidyσs(
     m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime},
 )
-    #    using MixedModels: AbstractReTerm
-    t = MixedModels.tidyσs(modelfit(m))
+    # Use allpars to get all parameters, then filter for σ
+    allpars_result = MixedModels.allpars(modelfit(m))
+    t = _allpars_to_tidy_σ(allpars_result)
     reorder_tidyσs(t, Unfold.formulas(m))
 end
 
-MixedModels.tidyβ(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime}) =
-    MixedModels.tidyβ(modelfit(m))
+function MixedModels.tidyβ(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime})
+    # Use allpars to get all parameters, then filter for β
+    allpars_result = MixedModels.allpars(modelfit(m))
+    _allpars_to_tidy_β(allpars_result)
+end
 
 """
     tidyρs(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime})
@@ -19,58 +93,10 @@ Returns a vector of NamedTuples with fields :iter, :group, :column1, :column2, :
 function tidyρs(
     m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime},
 )
-    t = tidyρs(modelfit(m))
+    # Use allpars to get all parameters, then filter for ρ
+    allpars_result = MixedModels.allpars(modelfit(m))
+    t = _allpars_to_tidy_ρ(allpars_result)
     reorder_tidyρs(t, Unfold.formulas(m))
-end
-
-"""
-    tidyρs(bsamp::LinearMixedModelFitCollection)
-
-Extract correlations from a LinearMixedModelFitCollection.
-Returns a vector of NamedTuples with fields :iter, :group, :column1, :column2, :ρ
-"""
-function tidyρs(bsamp::LinearMixedModelFitCollection{T}) where {T}
-    fits = bsamp.fits
-    fcnames = bsamp.fcnames
-    λ = bsamp.λ
-    colnms = (:iter, :group, :column1, :column2, :ρ)
-    result = sizehint!(
-        NamedTuple{colnms,Tuple{Int,Symbol,Symbol,Symbol,T}}[], 
-        length(fits) * sum(λ_mat -> (size(λ_mat, 1) * (size(λ_mat, 1) - 1)) ÷ 2, λ)
-    )
-    
-    for (iter, r) in enumerate(fits)
-        MixedModels.setθ!(bsamp, iter)    # install r.θ in λ
-        σ = coalesce(r.σ, one(T))
-        for (grp, ll) in zip(keys(fcnames), λ)
-            cnames = getproperty(fcnames, grp)
-            # Only process if we have multiple random effects (and thus correlations)
-            if length(cnames) > 1
-                # Extract correlations from the lower triangular matrix
-                # Following the logic from MixedModels.jl σρ! function
-                dat = ll.data
-                k = size(dat, 1)
-                # Normalize rows and compute correlations
-                normalized = copy(dat)
-                for i in 1:k
-                    len = sqrt(sum(abs2(dat[i, j]) for j in 1:i))
-                    if len > 0
-                        for j in 1:i
-                            normalized[i, j] = dat[i, j] / len
-                        end
-                    end
-                end
-                # Compute correlations as dot products of normalized rows
-                for i in 2:k
-                    for j in 1:(i-1)
-                        corr = sum(normalized[i, m] * normalized[j, m] for m in 1:i)
-                        push!(result, NamedTuple{colnms}((iter, grp, Symbol(cnames[i]), Symbol(cnames[j]), corr)))
-                    end
-                end
-            end
-        end
-    end
-    return result
 end
 
 
