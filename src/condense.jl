@@ -290,6 +290,8 @@ function Unfold.make_estimate(
         # Mass univariate: channel x time x parameter
         ntime = length(Unfold.times(m)[1])
         nchan = modelfit(m).fits[end].channel
+        # Transform from flat table (iterations x parameters) to (parameters x time x channel)
+        # then permute to (channel x time x parameters)
         estimate = permutedims(reshape(all_vals', size(all_vals, 2), ntime, nchan), [3, 2, 1])
         
         # Create group labels
@@ -319,6 +321,7 @@ function Unfold.make_estimate(
     else
         # Continuous time: channel x parameter
         nchan = modelfit(m).fits[end].channel
+        # Transform from flat table to (parameter x channel), then transpose to (channel x parameter)
         estimate = reshape(all_vals', size(all_vals, 2), nchan)'
         
         # Create group labels
