@@ -228,9 +228,10 @@ function Unfold.make_estimate(
     coefs = coef(m)
     ranef_sigma = ranef(m)
     corrs = ranefcorr(m)
-    estimate = cat(coefs, ranef_sigma, corrs, dims = ndims(coefs))
+    
     ranef_group = [x.group for x in MixedModels.tidyσs(m)]
-    corr_group = [x.group for x in tidyρs(m)]
+    corr_group_tidy = tidyρs(m)
+    corr_group = [x.group for x in corr_group_tidy]
 
     if ndims(coefs) == 3
         group_f =
@@ -242,7 +243,7 @@ function Unfold.make_estimate(
             permutedims(reshape(ranef_group, :, size(coefs, 2), size(coefs, 1)), [3 2 1])
 
         # reshape correlations similarly
-        if !isempty(corr_group)
+        if !isempty(corr_group) && size(corrs, 3) > 0
             corr_group =
                 permutedims(reshape(corr_group, :, size(coefs, 2), size(coefs, 1)), [3 2 1])
         else
@@ -251,8 +252,16 @@ function Unfold.make_estimate(
 
         stderror_fixef = Unfold.stderror(m)
         stderror_ranef = fill(nothing, size(ranef_sigma))
-        stderror_corr = fill(nothing, size(corrs))
-        stderror = cat(stderror_fixef, stderror_ranef, stderror_corr, dims = 3)
+        
+        # Only concatenate if we have correlations
+        if size(corrs, 3) > 0
+            estimate = cat(coefs, ranef_sigma, corrs, dims = ndims(coefs))
+            stderror_corr = fill(nothing, size(corrs))
+            stderror = cat(stderror_fixef, stderror_ranef, stderror_corr, dims = 3)
+        else
+            estimate = cat(coefs, ranef_sigma, dims = ndims(coefs))
+            stderror = cat(stderror_fixef, stderror_ranef, dims = 3)
+        end
     else
         group_f = repeat([nothing], size(coefs, 1), size(coefs, 2))
 
@@ -262,13 +271,19 @@ function Unfold.make_estimate(
         ranef_group = permutedims(ranef_group, [2, 1])
 
         # reshape correlations similarly
-        if !isempty(corr_group)
+        if !isempty(corr_group) && size(corrs, 2) > 0
             corr_group = reshape(corr_group, :, size(coefs, 1))
             corr_group = permutedims(corr_group, [2, 1])
         else
             corr_group = Array{Union{Nothing,Symbol}}(nothing, size(coefs, 1), 0)
         end
 
+        # Only concatenate if we have correlations
+        if size(corrs, 2) > 0
+            estimate = cat(coefs, ranef_sigma, corrs, dims = ndims(coefs))
+        else
+            estimate = cat(coefs, ranef_sigma, dims = ndims(coefs))
+        end
         stderror = fill(nothing, size(estimate))
     end
     group = cat(group_f, ranef_group, corr_group, dims = ndims(coefs)) |> Unfold.poolArray
