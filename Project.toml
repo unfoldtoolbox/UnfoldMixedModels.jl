@@ -4,6 +4,7 @@ version = "0.1.4"
 authors = ["Benedikt Ehinger <benedikt.ehinger@vis.uni-stuttgart.de>"]
 
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -18,6 +19,7 @@ StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
 Unfold = "181c99d8-e21b-4ff3-b70b-c233eddec679"
 
 [compat]
+BenchmarkTools = "1.6.3"
 DataFrames = "1"
 DocStringExtensions = "0.9"
 LinearAlgebra = "1"
