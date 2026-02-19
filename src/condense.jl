@@ -248,78 +248,101 @@ function reorder_tidyρs(t, f)
 end
 
 """
-    Unfold.make_estimate(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime},
-)
-extracts betas (and sigma's and correlations for mixed models) with string grouping indicator
+    Unfold.make_estimate(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime})
 
-returns as a ch x beta, or ch x time x beta (for mass univariate)
+Extract all parameters (betas, sigmas, and correlations) from mixed model using MixedModels.pbstrtbl.
+Returns estimates as channel x time x parameter arrays.
+
+This function uses MixedModels.pbstrtbl() which provides all parameters in a wide table format,
+avoiding the need to separately iterate through fits multiple times.
 """
 function Unfold.make_estimate(
     m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime},
 )
-
-    coefs = coef(m)
-    ranef_sigma = ranef(m)
-    corrs = ranefcorr(m)
+    # Get the wide-format table with all parameters using pbstrtbl
+    tbl = MixedModels.pbstrtbl(modelfit(m))
     
-    ranef_group = [x.group for x in MixedModels.tidyσs(m)]
-    corr_group_tidy = tidyρs(m)
-    corr_group = [x.group for x in corr_group_tidy]
-
-    if ndims(coefs) == 3
-        group_f =
-            repeat([nothing], size(coefs, 1), size(coefs, 2), size(coefs, ndims(coefs)))
-
-
-        # reshape to pred x time x chan and then invert to chan x time x pred
-        ranef_group =
-            permutedims(reshape(ranef_group, :, size(coefs, 2), size(coefs, 1)), [3 2 1])
-
-        # reshape correlations similarly
-        if !isempty(corr_group) && size(corrs, 3) > 0
-            corr_group =
-                permutedims(reshape(corr_group, :, size(coefs, 2), size(coefs, 1)), [3 2 1])
-        else
-            corr_group = Array{Union{Nothing,Symbol}}(nothing, size(coefs, 1), size(coefs, 2), 0)
-        end
-
-        stderror_fixef = Unfold.stderror(m)
-        stderror_ranef = fill(nothing, size(ranef_sigma))
+    # Get column names and identify parameter types
+    colnames_tbl = Tables.columnnames(tbl)
+    
+    # Separate fixed effects (β), random effects (σ), and correlations (ρ)
+    # Exclude :obj, :σ (residual), and :θ columns
+    β_cols = filter(s -> startswith(string(s), "β"), colnames_tbl)
+    σ_cols = filter(s -> startswith(string(s), "σ") && string(s) != "σ", colnames_tbl)
+    ρ_cols = filter(s -> startswith(string(s), "ρ"), colnames_tbl)
+    
+    # Extract values as matrices
+    β_vals = hcat([Tables.getcolumn(tbl, col) for col in β_cols]...)
+    σ_vals = isempty(σ_cols) ? zeros(Float64, length(tbl), 0) : hcat([Tables.getcolumn(tbl, col) for col in σ_cols]...)
+    ρ_vals = isempty(ρ_cols) ? zeros(Float64, length(tbl), 0) : hcat([Tables.getcolumn(tbl, col) for col in ρ_cols]...)
+    
+    # Combine all parameters
+    all_vals = hcat(β_vals, σ_vals, ρ_vals)
+    
+    # Get grouping information - we still need tidyσs and tidyρs for this
+    # as pbstrtbl doesn't include grouping metadata
+    n_fixef = length(β_cols)
+    n_ranef = length(σ_cols)
+    n_corr = length(ρ_cols)
+    
+    # Reshape based on model type
+    if m isa UnfoldLinearMixedModel
+        # Mass univariate: channel x time x parameter
+        ntime = length(Unfold.times(m)[1])
+        nchan = modelfit(m).fits[end].channel
+        estimate = permutedims(reshape(all_vals', size(all_vals, 2), ntime, nchan), [3, 2, 1])
         
-        # Only concatenate if we have correlations
-        if size(corrs, 3) > 0
-            estimate = cat(coefs, ranef_sigma, corrs, dims = ndims(coefs))
-            stderror_corr = fill(nothing, size(corrs))
-            stderror = cat(stderror_fixef, stderror_ranef, stderror_corr, dims = 3)
+        # Create group labels
+        group_f = repeat([nothing], nchan, ntime, n_fixef)
+        
+        # Get group names from model structure
+        if n_ranef > 0
+            ranef_group = [x.group for x in MixedModels.tidyσs(m)]
+            ranef_group = permutedims(reshape(ranef_group, :, ntime, nchan), [3, 2, 1])
         else
-            estimate = cat(coefs, ranef_sigma, dims = ndims(coefs))
-            stderror = cat(stderror_fixef, stderror_ranef, dims = 3)
+            ranef_group = Array{Union{Nothing,Symbol}}(nothing, nchan, ntime, 0)
         end
+        
+        if n_corr > 0
+            corr_group_tidy = tidyρs(m)
+            corr_group = [x.group for x in corr_group_tidy]
+            corr_group = permutedims(reshape(corr_group, :, ntime, nchan), [3, 2, 1])
+        else
+            corr_group = Array{Union{Nothing,Symbol}}(nothing, nchan, ntime, 0)
+        end
+        
+        # Standard errors - only for fixed effects
+        stderror_fixef = Unfold.stderror(m)
+        stderror_ranef = fill(nothing, nchan, ntime, n_ranef)
+        stderror_corr = fill(nothing, nchan, ntime, n_corr)
+        stderror = cat(stderror_fixef, stderror_ranef, stderror_corr, dims=3)
     else
-        group_f = repeat([nothing], size(coefs, 1), size(coefs, 2))
-
-        # reshape to time x channel
-        ranef_group = reshape(ranef_group, :, size(coefs, 1))
-        # permute to channel x time
-        ranef_group = permutedims(ranef_group, [2, 1])
-
-        # reshape correlations similarly
-        if !isempty(corr_group) && size(corrs, 2) > 0
-            corr_group = reshape(corr_group, :, size(coefs, 1))
-            corr_group = permutedims(corr_group, [2, 1])
+        # Continuous time: channel x parameter
+        nchan = modelfit(m).fits[end].channel
+        estimate = reshape(all_vals', size(all_vals, 2), nchan)'
+        
+        # Create group labels
+        group_f = repeat([nothing], nchan, n_fixef)
+        
+        if n_ranef > 0
+            ranef_group = [x.group for x in MixedModels.tidyσs(m)]
+            ranef_group = reshape(ranef_group, :, nchan)'
         else
-            corr_group = Array{Union{Nothing,Symbol}}(nothing, size(coefs, 1), 0)
+            ranef_group = Array{Union{Nothing,Symbol}}(nothing, nchan, 0)
         end
-
-        # Only concatenate if we have correlations
-        if size(corrs, 2) > 0
-            estimate = cat(coefs, ranef_sigma, corrs, dims = ndims(coefs))
+        
+        if n_corr > 0
+            corr_group_tidy = tidyρs(m)
+            corr_group = [x.group for x in corr_group_tidy]
+            corr_group = reshape(corr_group, :, nchan)'
         else
-            estimate = cat(coefs, ranef_sigma, dims = ndims(coefs))
+            corr_group = Array{Union{Nothing,Symbol}}(nothing, nchan, 0)
         end
+        
         stderror = fill(nothing, size(estimate))
     end
-    group = cat(group_f, ranef_group, corr_group, dims = ndims(coefs)) |> Unfold.poolArray
+    
+    group = cat(group_f, ranef_group, corr_group, dims=ndims(estimate)) |> Unfold.poolArray
     return Float64.(estimate), stderror, group
 end
 
@@ -334,16 +357,29 @@ end
 
 
 function Unfold.get_coefnames(uf::UnfoldLinearMixedModelContinuousTime)
-    # special case here, because we have to reorder the random effects to the end, else labels get messed up as we concat (coefs,ranefs)
-    #   coefnames = Unfold.coefnames(formula(uf))
-    #    coefnames(formula(uf)[1].rhs[1])
+    # Get coefficient names from pbstrtbl column names
+    tbl = MixedModels.pbstrtbl(modelfit(uf))
+    colnames_tbl = Tables.columnnames(tbl)
+    
+    # Extract parameter names, excluding :obj, :σ (residual), and :θ
+    β_cols = filter(s -> startswith(string(s), "β"), colnames_tbl)
+    σ_cols = filter(s -> startswith(string(s), "σ") && string(s) != "σ", colnames_tbl)
+    ρ_cols = filter(s -> startswith(string(s), "ρ"), colnames_tbl)
+    
+    # Get actual parameter names for display
+    # For β: use the formula coefficient names
     formulas = Unfold.formulas(uf)
-    if !isa(formulas, AbstractArray) # in case we have only a single basisfunction
+    if !isa(formulas, AbstractArray)
         formulas = [formulas]
     end
     fe_coefnames = vcat([coefnames(f.rhs[1]) for f in formulas]...)
-    re_coefnames = vcat([coefnames(f.rhs[2:end]) for f in formulas]...)
+    
+    # For σ: use tidyσs to get the names with groups
+    re_coefnames = isempty(σ_cols) ? String[] : vcat([coefnames(f.rhs[2:end]) for f in formulas]...)
+    
+    # For ρ: use get_corrnames
     corr_names = get_corrnames(uf)
+    
     return vcat(fe_coefnames, re_coefnames, corr_names)
 end
 
