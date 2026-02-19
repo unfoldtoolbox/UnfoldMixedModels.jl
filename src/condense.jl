@@ -10,6 +10,69 @@ end
 MixedModels.tidyβ(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime}) =
     MixedModels.tidyβ(modelfit(m))
 
+"""
+    tidyρs(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime})
+
+Extract correlations from random effects in the mixed model.
+Returns a vector of NamedTuples with fields :iter, :group, :column1, :column2, :ρ
+"""
+function tidyρs(
+    m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime},
+)
+    t = tidyρs(modelfit(m))
+    reorder_tidyρs(t, Unfold.formulas(m))
+end
+
+"""
+    tidyρs(bsamp::LinearMixedModelFitCollection)
+
+Extract correlations from a LinearMixedModelFitCollection.
+Returns a vector of NamedTuples with fields :iter, :group, :column1, :column2, :ρ
+"""
+function tidyρs(bsamp::LinearMixedModelFitCollection{T}) where {T}
+    fits = bsamp.fits
+    fcnames = bsamp.fcnames
+    λ = bsamp.λ
+    colnms = (:iter, :group, :column1, :column2, :ρ)
+    result = sizehint!(
+        NamedTuple{colnms,Tuple{Int,Symbol,Symbol,Symbol,T}}[], 
+        length(fits) * sum(λ_mat -> (size(λ_mat, 1) * (size(λ_mat, 1) - 1)) ÷ 2, λ)
+    )
+    
+    for (iter, r) in enumerate(fits)
+        MixedModels.setθ!(bsamp, iter)    # install r.θ in λ
+        σ = coalesce(r.σ, one(T))
+        for (grp, ll) in zip(keys(fcnames), λ)
+            cnames = getproperty(fcnames, grp)
+            # Only process if we have multiple random effects (and thus correlations)
+            if length(cnames) > 1
+                # Extract correlations from the lower triangular matrix
+                # Following the logic from MixedModels.jl σρ! function
+                dat = ll.data
+                k = size(dat, 1)
+                # Normalize rows and compute correlations
+                normalized = copy(dat)
+                for i in 1:k
+                    len = sqrt(sum(abs2(dat[i, j]) for j in 1:i))
+                    if len > 0
+                        for j in 1:i
+                            normalized[i, j] = dat[i, j] / len
+                        end
+                    end
+                end
+                # Compute correlations as dot products of normalized rows
+                for i in 2:k
+                    for j in 1:(i-1)
+                        corr = sum(normalized[i, k] * normalized[j, k] for k in 1:i)
+                        push!(result, NamedTuple{colnms}((iter, grp, Symbol(cnames[i]), Symbol(cnames[j]), corr)))
+                    end
+                end
+            end
+        end
+    end
+    return result
+end
+
 
 """
 helper function because `coefnames` returns an array only if number of coefs is larger than 1
@@ -90,9 +153,71 @@ function reorder_tidyσs(t, f)
 end
 
 """
+    reorder_tidyρs(t, f)
+This function reorders a tidyρs output, according to the formula and not according to the largest RandomGrouping.
+
+"""
+function reorder_tidyρs(t, f)
+    # If there are no correlations, return empty
+    if isempty(t)
+        return t
+    end
+    
+    # get the order from the formula, this is the target
+    f_order = random_effect_groupings(f) # formula order
+    f_order = vcat(f_order...)
+    
+    # find the fixefs
+    fixef_ix = isnothing.(f_order)
+    f_order = string.(f_order[.!fixef_ix])
+    f_name = vcat(coefnames(f)...)[.!fixef_ix]
+    
+    # get order from tidy object
+    t_order = [string(i.group) for i in t if i.iter == 1]
+    t_name1 = [string(i.column1) for i in t if i.iter == 1]
+    t_name2 = [string(i.column2) for i in t if i.iter == 1]
+    
+    # combine for formula and tidy output the group + the coefnames
+    f_comb = f_order .* f_name
+    t_comb = t_order .* t_name1 .* t_name2
+    
+    # For correlations, we need to match pairs
+    # Build a mapping based on group and column names
+    reorder_ix = Int[]
+    for (i, (grp_f, name_f)) in enumerate(zip(f_order, f_name))
+        # Find all correlations involving this group and name
+        for (j, row) in enumerate(t)
+            if row.iter == 1 && string(row.group) == grp_f && 
+               (string(row.column1) == name_f || string(row.column2) == name_f)
+                # This correlation involves our target
+                # Check if we haven't already added it
+                if !(j in reorder_ix)
+                    push!(reorder_ix, j)
+                end
+            end
+        end
+    end
+    
+    # If we found a different number of correlations, just return original order
+    # This handles the complex case where formula order doesn't match
+    if length(reorder_ix) != length(t_comb)
+        @debug "Warning: Could not fully reorder correlations, using original order"
+        return t
+    end
+    
+    # repeat and build the index for all timepoints
+    reorder_ix_all = repeat(reorder_ix, length(t) ÷ length(reorder_ix))
+    for k = 1:length(reorder_ix):length(t)
+        reorder_ix_all[k:(k+length(reorder_ix)-1)] .+= (k - 1)
+    end
+    
+    return t[reorder_ix_all]
+end
+
+"""
     Unfold.make_estimate(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime},
 )
-extracts betas (and sigma's for mixed models) with string grouping indicator
+extracts betas (and sigma's and correlations for mixed models) with string grouping indicator
 
 returns as a ch x beta, or ch x time x beta (for mass univariate)
 """
@@ -101,8 +226,11 @@ function Unfold.make_estimate(
 )
 
     coefs = coef(m)
-    estimate = cat(coefs, ranef(m), dims = ndims(coefs))
+    ranef_sigma = ranef(m)
+    corrs = ranefcorr(m)
+    estimate = cat(coefs, ranef_sigma, corrs, dims = ndims(coefs))
     ranef_group = [x.group for x in MixedModels.tidyσs(m)]
+    corr_group = [x.group for x in tidyρs(m)]
 
     if ndims(coefs) == 3
         group_f =
@@ -113,11 +241,18 @@ function Unfold.make_estimate(
         ranef_group =
             permutedims(reshape(ranef_group, :, size(coefs, 2), size(coefs, 1)), [3 2 1])
 
-
+        # reshape correlations similarly
+        if !isempty(corr_group)
+            corr_group =
+                permutedims(reshape(corr_group, :, size(coefs, 2), size(coefs, 1)), [3 2 1])
+        else
+            corr_group = Array{Union{Nothing,Symbol}}(nothing, size(coefs, 1), size(coefs, 2), 0)
+        end
 
         stderror_fixef = Unfold.stderror(m)
-        stderror_ranef = fill(nothing, size(ranef(m)))
-        stderror = cat(stderror_fixef, stderror_ranef, dims = 3)
+        stderror_ranef = fill(nothing, size(ranef_sigma))
+        stderror_corr = fill(nothing, size(corrs))
+        stderror = cat(stderror_fixef, stderror_ranef, stderror_corr, dims = 3)
     else
         group_f = repeat([nothing], size(coefs, 1), size(coefs, 2))
 
@@ -126,13 +261,17 @@ function Unfold.make_estimate(
         # permute to channel x time
         ranef_group = permutedims(ranef_group, [2, 1])
 
-        #@debug size(ranef_group)
-        #
-        #ranef_group = repeat(["ranef"], size(coefs, 1), size(ranef(m), 2))
-        #@debug size(ranef_group)
+        # reshape correlations similarly
+        if !isempty(corr_group)
+            corr_group = reshape(corr_group, :, size(coefs, 1))
+            corr_group = permutedims(corr_group, [2, 1])
+        else
+            corr_group = Array{Union{Nothing,Symbol}}(nothing, size(coefs, 1), 0)
+        end
+
         stderror = fill(nothing, size(estimate))
     end
-    group = cat(group_f, ranef_group, dims = ndims(coefs)) |> Unfold.poolArray
+    group = cat(group_f, ranef_group, corr_group, dims = ndims(coefs)) |> Unfold.poolArray
     return Float64.(estimate), stderror, group
 end
 
@@ -156,7 +295,24 @@ function Unfold.get_coefnames(uf::UnfoldLinearMixedModelContinuousTime)
     end
     fe_coefnames = vcat([coefnames(f.rhs[1]) for f in formulas]...)
     re_coefnames = vcat([coefnames(f.rhs[2:end]) for f in formulas]...)
-    return vcat(fe_coefnames, re_coefnames)
+    corr_names = get_corrnames(uf)
+    return vcat(fe_coefnames, re_coefnames, corr_names)
+end
+
+"""
+    get_corrnames(uf::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime})
+
+Get correlation parameter names from a mixed model.
+Returns names in the format "ρ: col1, col2" for correlations between random effects.
+"""
+function get_corrnames(uf::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime})
+    corrs = tidyρs(uf)
+    if isempty(corrs)
+        return String[]
+    end
+    # Get unique correlation names from the first iteration
+    unique_corrs = filter(x -> x.iter == 1, corrs)
+    return ["ρ: $(x.column1), $(x.column2)" for x in unique_corrs]
 end
 
 

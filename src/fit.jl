@@ -174,6 +174,31 @@ function MixedModels.ranef(
     return reshape_lmm(uf, sigma)
 end
 
+"""
+    ranefcorr(uf::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime})
+
+Extract correlations between random effects from the mixed model.
+Returns an array with correlations reshaped to match the model dimensions.
+"""
+function ranefcorr(
+    uf::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime},
+)
+    corrs_tidy = tidyρs(uf)
+    if isempty(corrs_tidy)
+        # No correlations (e.g., only single random effects per group)
+        if uf isa UnfoldLinearMixedModel
+            nchan = modelfit(uf).fits[end].channel
+            ntime = length(Unfold.times(uf)[1])
+            return Array{Float64}(undef, nchan, ntime, 0)
+        else
+            nchan = modelfit(uf).fits[end].channel
+            return Array{Float64}(undef, nchan, 0)
+        end
+    end
+    corrs = [x.ρ for x in corrs_tidy]
+    return reshape_lmm(uf, corrs)
+end
+
 function reshape_lmm(uf::UnfoldLinearMixedModel, est)
     ntime = length(Unfold.times(uf)[1])
     @debug ntime
