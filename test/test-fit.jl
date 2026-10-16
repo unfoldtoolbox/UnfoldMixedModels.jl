@@ -214,7 +214,9 @@ end
         n_items = 16,
     )
     subj_idx = [parse(Int, split(string(s), 'S')[2]) for s in evts.subject]
-    evts.latency .+= size(data, 1) .* (subj_idx .- 1)
+    # shift by the latency range (not only one epoch): each subject's events must lie in
+    # its own non-overlapping data segment for the time-expanded random effects
+    evts.latency .+= maximum(evts.latency) .* (subj_idx .- 1)
 
     data = reshape(data, 1, :)
     transform!(evts, :subject => categorical => :subject)

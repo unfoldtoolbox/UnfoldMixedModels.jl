@@ -85,16 +85,6 @@ function change_ReMat_size!(remat::MixedModels.AbstractReMat, m::Integer)
 end
 
 
-"""
-$(SIGNATURES)
-Get the timeranges where the random grouping variable was applied
-"""
-function get_timeexpanded_random_grouping(tbl_group, tbl_latencies, basisfunction)
-    ranges = Unfold.get_timeexpanded_time_range.(tbl_latencies, Ref(basisfunction))
-end
-
-
-
 function equalize_ReMat_lengths!(remats::NTuple{A,MixedModels.AbstractReMat}) where {A}
     # find max length
     m = maximum([x[1] for x in size.(remats)])
@@ -148,8 +138,6 @@ function StatsModels.modelcols(
     z = disallowmissing(z) # can't have missing in here
 
 
-    # First we check if there is overlap in the timeexpanded term. If so, we cannot continue. Later implementations will remedy that
-    #println(dump(term,))
     if hasfield(typeof(term.term), :rhs)
         rhs = term.term.rhs
 
@@ -164,53 +152,42 @@ function StatsModels.modelcols(
 
     end
 
-    group = tbl[!, rhs.sym]
     time = tbl[!, term.eventfields[1]]
 
-    # get the from-to onsets of the grouping varibales
-    onsets = get_timeexpanded_random_grouping(group, time, term.basisfunction)
-    #print(size(reMat.z))
-    refs = zeros(size(z)[2]) .+ 1
-    for (i, o) in enumerate(onsets[2:end])
-        # check for overlap
-        if (minimum(o) <= maximum(onsets[i+1])) & (maximum(o) <= minimum(onsets[i+1]))
-            error("overlap in random effects structure detected, not currently supported")
+    # Determine which grouping level covers each time sample.
+    # Every event contributes to the time samples spanned by its basisfunction, and all
+    # contributions to a sample have to belong to the same grouping level, otherwise the
+    # random effects of different levels would leak into each other.
+    # reMat.refs contains the level index (into reMat.levels) of each event.
+    levels = reMat.levels
+    refs = zeros(Int32, size(z, 2)) # grouping level per time sample, 0 = not assigned yet
+    shift = Unfold.shift_onset(term.basisfunction)
+    w = Unfold.width(term.basisfunction)
+    for (onset, lev) in zip(time, reMat.refs)
+        s = floor(Int, onset) + shift
+        for t in max(s, 1):min(s + w - 1, length(refs))
+            if refs[t] == 0
+                refs[t] = lev
+            elseif refs[t] != lev
+                error(
+                    "overlap in random effects structure detected: time sample $t is covered by " *
+                    "the basisfunctions of more than one level of grouping variable $(rhs.sym) " *
+                    "($(levels[refs[t]]) and $(levels[lev])). The random effects of different " *
+                    "levels would leak into each other. Increase the distance between events of " *
+                    "different levels or shorten the basisfunction.",
+                )
+            end
         end
     end
 
-    # From now we can assume no overlap
-    # We want to fnd which subject is active when
-    refs = zeros(size(z)[2]) .+ 1
-    uGroup = unique(group)
-
-    for (i, g) in enumerate(uGroup[1:end])
-
-        ix_start = findfirst(g .== group)
-        ix_end = findlast(g .== group)
-        if i == 1
-            time_start = 1
+    # Time samples not covered by any event have z == 0, so the surrounding level can be extended into the gaps
+    prev = one(Int32)
+    for t in eachindex(refs)
+        if refs[t] == 0
+            refs[t] = prev
         else
-            time_start = time[ix_start]
-            # XXX Replace this functionality by shift_onset?
-            time_start = time_start - sum(Unfold.times(term.basisfunction) .<= 0)
+            prev = refs[t]
         end
-        if i == length(uGroup)
-            time_stop = size(refs, 1)
-        else
-            time_stop = time[ix_end]
-            time_stop = time_stop + sum(Unfold.times(term.basisfunction) .> 0)
-        end
-        if time_start < 0
-            time_start = 1
-        end
-
-        if time_stop > size(refs, 1)
-            time_stop = size(refs, 1)
-        end
-
-
-        #println("$g,$time_start,$time_stop")
-        refs[Int64(time_start):Int64(time_stop)] .= i
     end
 
     # Other variables with implementaions taken from the LinerMixedModel function
@@ -234,15 +211,10 @@ function StatsModels.modelcols(
         end
     end
 
-    levels = reMat.levels
-    refs = refs
-
-
-    # reMat.levels doesnt change
     cnames = coefnames(term)
     #print(refs)
     adjA = MixedModels.adjA(refs, z)
-    scratch = Matrix{T}(undef, (S, length(uGroup)))
+    scratch = Matrix{T}(undef, (S, length(levels)))
 
     # Once MixedModels.jl supports it, can be replaced with: SparseReMat
     ReMat{T,S}(rhs, refs, levels, cnames, z, wtz, λ, inds, adjA, scratch)
