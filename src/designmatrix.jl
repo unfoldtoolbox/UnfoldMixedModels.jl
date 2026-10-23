@@ -36,6 +36,11 @@ end
 function lmm_combine_modelmatrices!(Xcomb, X1, X2)
     # we have random effects
     # combine REMats in single-eventtpe formulas ala y ~ (1|x) + (a|x)
+    # work on copies: combining modifies the ReMats (equalize sizes) and the
+    # stored designmatrices must not be modified
+    Xcomb = deepcopy(Xcomb)
+    X1 = deepcopy(X1)
+    X2 = deepcopy(X2)
     modelmatrix1 = MixedModels._amalgamate([X1.modelmatrix[2:end]...], Float64)
     modelmatrix2 = MixedModels._amalgamate([X2.modelmatrix[2:end]...], Float64)
 
@@ -53,13 +58,14 @@ function lmm_combine_modelmatrices!(Xcomb, X1, X2)
             throw("IncompatibleRandomGroupings")
         end
     catch e
+        e isa String || rethrow() # unrelated error, keep its original message
         @error "Error, you seem to have two different eventtypes with the same random-effect grouping variable. \n
         This is not allowed, you have to rename one. Example:\n
         eventA: y~1+(1|item) \n
         eventB: y~1+(1|item)  \n
         This leads to this error. Rename the later one\n
         eventB: y~1+(1|itemB) "
-        throw("IncompatibleRandomGroupings")
+        throw(e)
     end
 
     return Xcomb
@@ -102,19 +108,6 @@ function equalize_ReMat_lengths!(remats::NTuple{A,MixedModels.AbstractReMat}) wh
     end
 end
 
-
-mutable struct SparseReMat{T,S} <: MixedModels.AbstractReMat{T}
-    trm::Any
-    refs::Vector{Int32}
-    levels::Any
-    cnames::Vector{String}
-    z::SparseMatrixCSC{T}
-    wtz::SparseMatrixCSC{T}
-    λ::LowerTriangular{T,Matrix{T}}
-    inds::Vector{Int}
-    adjA::SparseMatrixCSC{T,Int32}
-    scratch::Matrix{T}
-end
 
 """
 $(SIGNATURES)
@@ -193,15 +186,13 @@ function StatsModels.modelcols(
 
     # Other variables with implementaions taken from the LinerMixedModel function
     wtz = z
-    trm = term
 
     S = size(z, 1)
     T = eltype(z)
     λ = LowerTriangular(Matrix{T}(I, S, S))
 
-    inds = MixedModels.sizehint!(Int[], (S * (S + 1)) >> 1) # double trouble? can this line go?
-    m = reshape(1:abs2(S), (S, S))
     inds = sizehint!(Int[], (S * (S + 1)) >> 1)
+    m = reshape(1:abs2(S), (S, S))
     for j = 1:S
         for i = j:S
             # We currently restrict to diagonal entries
