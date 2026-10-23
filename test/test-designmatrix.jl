@@ -183,3 +183,28 @@ end
     re = get_remat(f, bf, tbl)
     @test re.refs[10] == Int32(1) # floor(10.5) = 10
 end
+
+@testset "truncated ReMat keeps MixedModels invariant" begin
+    # data shorter than the design triggers change_ReMat_size! truncation;
+    # two RE terms are needed to expose the refs/z length mismatch
+    tbl = DataFrame(
+        latency = [10, 30, 40, 50],
+        subject = categorical(["S1", "S1", "S2", "S2"]),
+        item = categorical(["i1", "i1", "i2", "i2"]),
+    )
+    bf = firbasis(τ = (0, 0.5), sfreq = 10) # span [latency, latency + 5] -> design length 55
+    f = @formula 0 ~ 1 + (1 | item) + (1 | subject)
+
+    form = Unfold.apply_schema(f, Unfold.schema(f, tbl), MixedModels.LinearMixedModel)
+    form = Unfold.apply_basisfunction(form, bf, nothing, Any)
+    re = Unfold.modelcols.(form.rhs, Ref(tbl))[3]
+    @test length(re.refs) == 55
+    UnfoldMixedModels.change_ReMat_size!(re, 52)
+    @test size(re.z, 2) == size(re.wtz, 2) == size(re.adjA, 2) == length(re.refs) == 52
+
+    # dropping the last event's samples must not corrupt the fit (the objective of a
+    # LinearMixedModel is always positive)
+    data = Float64.(1:52)' # shorter than the design
+    uf = fit(UnfoldModel, [Any => (f, bf)], tbl, data; show_progress = false)
+    @test uf.modelfit.collection.fits[1].objective > 0
+end

@@ -71,9 +71,10 @@ function change_ReMat_size!(remat::MixedModels.AbstractReMat, m::Integer)
     n = m - length(remat.refs) # missing elements
     if n < 0
         deleteat!(remat.refs, range(m + 1, stop = length(remat.refs)))
-        remat.adjA = remat.adjA[:, 1:(m+1)]
-        remat.wtz = remat.wtz[:, 1:(m+1)]
-        remat.z = remat.z[:, 1:(m+1)]
+        # MixedModels requires length(refs) == size(z,2) (and wtz, adjA respectively)
+        remat.adjA = remat.adjA[:, 1:m]
+        remat.wtz = remat.wtz[:, 1:m]
+        remat.z = remat.z[:, 1:m]
     elseif n > 0
         append!(remat.refs, repeat([remat.refs[end]], n))
         remat.adjA = [remat.adjA sparse(repeat([0], size(remat.adjA)[1], n))]
