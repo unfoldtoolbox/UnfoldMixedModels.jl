@@ -10,6 +10,50 @@ end
 MixedModels.tidyβ(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime}) =
     MixedModels.tidyβ(modelfit(m))
 
+"""
+    UnfoldMixedModels.tidyρs(m)
+
+Correlations between the random effects, similar to `MixedModels.tidyσs`: one entry per fit & correlated random-effect pair, with fields `(iter, group, column1, column2, ρ)`.
+
+The correlations are extracted by looping over `modelfit(m).fits`, rebuilding each λ block from the stored `θ`. Correlations that are structurally zero (e.g. `zerocorr`) are not included.
+"""
+function tidyρs(m::Union{UnfoldLinearMixedModel,UnfoldLinearMixedModelContinuousTime})
+    coll = modelfit(m)
+    out = Vector{NamedTuple}()
+    for (iter, f) in enumerate(coll.fits)
+        offset = 0
+        for (r, λtemplate) in enumerate(coll.λ)
+            inds = coll.inds[r]
+            k = size(λtemplate, 1)
+            # rebuild the λ of this fit from θ, as MixedModels.setθ! does
+            λdata = zeros(size(λtemplate))
+            λdata[inds] .= f.θ[offset .+ (1:length(inds))]
+            offset += length(inds)
+            # free (non-zerocorr) λ entries, as MixedModels.indmat
+            im = reshape([ix ∈ inds for ix = 1:abs2(k)], k, k)
+            cnames = coll.fcnames[r]
+            σs = [norm(view(λdata, i, 1:i)) for i = 1:k]
+            for i = 2:k, j = 1:(i-1)
+                iszero(dot(view(im, i, :), view(im, j, :))) && continue # zerocorr - no free shared entry
+                ρ =
+                    σs[i] * σs[j] == 0 ? NaN :
+                    dot(view(λdata, i, :), view(λdata, j, :)) / (σs[i] * σs[j])
+                push!(
+                    out,
+                    (
+                        iter = iter,
+                        group = keys(coll.fcnames)[r],
+                        column1 = string(cnames[i]),
+                        column2 = string(cnames[j]),
+                        ρ = ρ,
+                    ),
+                )
+            end
+        end
+    end
+    return out
+end
+
 
 """
 helper function because `coefnames` returns an array only if number of coefs is larger than 1
@@ -101,7 +145,21 @@ function Unfold.make_estimate(
 )
 
     coefs = coef(m)
-    estimate = cat(coefs, ranef(m), dims = ndims(coefs))
+    corrs = tidyρs(m)
+    ρs = [c.ρ for c in corrs]
+    if ndims(coefs) == 3
+        corr_est = permutedims(reshape(ρs, :, size(coefs, 2), size(coefs, 1)), [3, 2, 1])
+        corr_group = permutedims(
+            reshape([c.group for c in corrs], :, size(coefs, 2), size(coefs, 1)),
+            [3, 2, 1],
+        )
+    else
+        corr_est = permutedims(reshape(ρs, :, size(coefs, 1)), [2, 1])
+        corr_group =
+            permutedims(reshape([c.group for c in corrs], :, size(coefs, 1)), [2, 1])
+    end
+
+    estimate = cat(coefs, ranef(m), corr_est, dims = ndims(coefs))
     ranef_group = [x.group for x in MixedModels.tidyσs(m)]
 
     if ndims(coefs) == 3
@@ -117,7 +175,8 @@ function Unfold.make_estimate(
 
         stderror_fixef = Unfold.stderror(m)
         stderror_ranef = fill(nothing, size(ranef(m)))
-        stderror = cat(stderror_fixef, stderror_ranef, dims = 3)
+        stderror_corr = fill(nothing, size(corr_est))
+        stderror = cat(stderror_fixef, stderror_ranef, stderror_corr, dims = 3)
     else
         group_f = repeat([nothing], size(coefs, 1), size(coefs, 2))
 
@@ -132,7 +191,7 @@ function Unfold.make_estimate(
         #@debug size(ranef_group)
         stderror = fill(nothing, size(estimate))
     end
-    group = cat(group_f, ranef_group, dims = ndims(coefs)) |> Unfold.poolArray
+    group = cat(group_f, ranef_group, corr_group, dims = ndims(coefs)) |> Unfold.poolArray
     return Float64.(estimate), stderror, group
 end
 
@@ -146,6 +205,30 @@ function Unfold.stderror(
 end
 
 
+"""
+correlation coefficient names for the coeftable, one per correlated random-effect pair, in the same order as `tidyρs`.
+"""
+function _corr_coefnames(uf)
+    out = String[]
+    for c in tidyρs(uf)
+        c.iter == 1 || continue
+        if uf isa UnfoldLinearMixedModelContinuousTime
+            # coeftable splits names on ' : ', so eventname & colname components are needed
+            event = split(c.column1, " : ")[1]
+            push!(
+                out,
+                "$event : ρ: $(_compact_cname(c.column1)) - $(_compact_cname(c.column2)) : NaN",
+            )
+        else
+            push!(out, "ρ: $(c.column1) - $(c.column2)")
+        end
+    end
+    return out
+end
+
+# "Any : (Intercept) : -0.2" => "(Intercept)@-0.2"
+_compact_cname(cname) = (p = split(cname, " : "); "$(p[2])@$(p[3])")
+
 function Unfold.get_coefnames(uf::UnfoldLinearMixedModelContinuousTime)
     # special case here, because we have to reorder the random effects to the end, else labels get messed up as we concat (coefs,ranefs)
     #   coefnames = Unfold.coefnames(formula(uf))
@@ -156,7 +239,11 @@ function Unfold.get_coefnames(uf::UnfoldLinearMixedModelContinuousTime)
     end
     fe_coefnames = vcat([coefnames(f.rhs[1]) for f in formulas]...)
     re_coefnames = vcat([coefnames(f.rhs[2:end]) for f in formulas]...)
-    return vcat(fe_coefnames, re_coefnames)
+    return vcat(fe_coefnames, re_coefnames, _corr_coefnames(uf))
+end
+
+function Unfold.get_coefnames(uf::UnfoldLinearMixedModel)
+    return vcat(vcat(Unfold.coefnames(formulas(uf))...), _corr_coefnames(uf))
 end
 
 
