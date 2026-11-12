@@ -206,17 +206,16 @@ end
 end
 ## Condense check for multi channel, multi
 @testset "LMM multi channel, multi basisfunction" begin
+    # continuous (non-epoched) data is (segment length × n_subjects): the shift below
+    # puts each subject's events exactly on its own contiguous, simulated signal segment
     data, evts = UnfoldSim.predef_2x2(;
-        return_epoched = true,
         n_subjects = 5,
         noiselevel = 1,
         signalsize = 10,
         n_items = 16,
     )
     subj_idx = [parse(Int, split(string(s), 'S')[2]) for s in evts.subject]
-    # shift by the latency range (not only one epoch): each subject's events must lie in
-    # its own non-overlapping data segment for the time-expanded random effects
-    evts.latency .+= maximum(evts.latency) .* (subj_idx .- 1)
+    evts.latency .+= size(data, 1) .* (subj_idx .- 1)
 
     data = reshape(data, 1, :)
     transform!(evts, :subject => categorical => :subject)
