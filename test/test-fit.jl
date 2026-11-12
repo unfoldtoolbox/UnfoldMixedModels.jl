@@ -206,8 +206,9 @@ end
 end
 ## Condense check for multi channel, multi
 @testset "LMM multi channel, multi basisfunction" begin
+    # continuous (non-epoched) data is (segment length × n_subjects): the shift below
+    # puts each subject's events exactly on its own contiguous, simulated signal segment
     data, evts = UnfoldSim.predef_2x2(;
-        return_epoched = true,
         n_subjects = 5,
         noiselevel = 1,
         signalsize = 10,

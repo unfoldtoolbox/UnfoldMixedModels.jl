@@ -114,8 +114,6 @@ function StatsModels.fit!(
             end
             #@debug println(MixedModels.fixef!(βsc,mm))
 
-            β = NamedTuple{β_names}(MixedModels.fixef!(βsc, mm))
-
             out = (
                 objective = mm.objective,
                 σ = mm.σ,
@@ -155,7 +153,9 @@ function prepare_modelmatrix(uf)
         end
         Xs = Xs[1]
     end
-    Xs = (Unfold.extend_to_larger(Xs[1]), Xs[2:end]...)#(Unfold.extend_to_larger(Xs[1]), Xs[2:end]...)
+    # work on copies of the ReMats: the fit may modify them (equalize/truncate sizes)
+    # and the stored designmatrix must not be modified
+    Xs = (Unfold.extend_to_larger(Xs[1]), deepcopy.(Xs[2:end])...)
     Xs = (disallowmissing(Xs[1]), Xs[2:end]...)
     return Xs
 

@@ -36,6 +36,11 @@ end
 function lmm_combine_modelmatrices!(Xcomb, X1, X2)
     # we have random effects
     # combine REMats in single-eventtpe formulas ala y ~ (1|x) + (a|x)
+    # work on copies: combining modifies the ReMats (equalize sizes) and the
+    # stored designmatrices must not be modified
+    Xcomb = deepcopy(Xcomb)
+    X1 = deepcopy(X1)
+    X2 = deepcopy(X2)
     modelmatrix1 = MixedModels._amalgamate([X1.modelmatrix[2:end]...], Float64)
     modelmatrix2 = MixedModels._amalgamate([X2.modelmatrix[2:end]...], Float64)
 
@@ -53,13 +58,14 @@ function lmm_combine_modelmatrices!(Xcomb, X1, X2)
             throw("IncompatibleRandomGroupings")
         end
     catch e
+        e isa String || rethrow() # unrelated error, keep its original message
         @error "Error, you seem to have two different eventtypes with the same random-effect grouping variable. \n
         This is not allowed, you have to rename one. Example:\n
         eventA: y~1+(1|item) \n
         eventB: y~1+(1|item)  \n
         This leads to this error. Rename the later one\n
         eventB: y~1+(1|itemB) "
-        throw("IncompatibleRandomGroupings")
+        throw(e)
     end
 
     return Xcomb
@@ -71,9 +77,10 @@ function change_ReMat_size!(remat::MixedModels.AbstractReMat, m::Integer)
     n = m - length(remat.refs) # missing elements
     if n < 0
         deleteat!(remat.refs, range(m + 1, stop = length(remat.refs)))
-        remat.adjA = remat.adjA[:, 1:(m+1)]
-        remat.wtz = remat.wtz[:, 1:(m+1)]
-        remat.z = remat.z[:, 1:(m+1)]
+        # MixedModels requires length(refs) == size(z,2) (and wtz, adjA respectively)
+        remat.adjA = remat.adjA[:, 1:m]
+        remat.wtz = remat.wtz[:, 1:m]
+        remat.z = remat.z[:, 1:m]
     elseif n > 0
         append!(remat.refs, repeat([remat.refs[end]], n))
         remat.adjA = [remat.adjA sparse(repeat([0], size(remat.adjA)[1], n))]
@@ -83,16 +90,6 @@ function change_ReMat_size!(remat::MixedModels.AbstractReMat, m::Integer)
 
     #ReMat{T,S}(remat.trm, refs, levels, cnames, z, wtz, λ, inds, adjA, scratch)
 end
-
-
-"""
-$(SIGNATURES)
-Get the timeranges where the random grouping variable was applied
-"""
-function get_timeexpanded_random_grouping(tbl_group, tbl_latencies, basisfunction)
-    ranges = Unfold.get_timeexpanded_time_range.(tbl_latencies, Ref(basisfunction))
-end
-
 
 
 function equalize_ReMat_lengths!(remats::NTuple{A,MixedModels.AbstractReMat}) where {A}
@@ -111,19 +108,6 @@ function equalize_ReMat_lengths!(remats::NTuple{A,MixedModels.AbstractReMat}) wh
     end
 end
 
-
-mutable struct SparseReMat{T,S} <: MixedModels.AbstractReMat{T}
-    trm::Any
-    refs::Vector{Int32}
-    levels::Any
-    cnames::Vector{String}
-    z::SparseMatrixCSC{T}
-    wtz::SparseMatrixCSC{T}
-    λ::LowerTriangular{T,Matrix{T}}
-    inds::Vector{Int}
-    adjA::SparseMatrixCSC{T,Int32}
-    scratch::Matrix{T}
-end
 
 """
 $(SIGNATURES)
@@ -148,8 +132,6 @@ function StatsModels.modelcols(
     z = disallowmissing(z) # can't have missing in here
 
 
-    # First we check if there is overlap in the timeexpanded term. If so, we cannot continue. Later implementations will remedy that
-    #println(dump(term,))
     if hasfield(typeof(term.term), :rhs)
         rhs = term.term.rhs
 
@@ -164,66 +146,53 @@ function StatsModels.modelcols(
 
     end
 
-    group = tbl[!, rhs.sym]
     time = tbl[!, term.eventfields[1]]
 
-    # get the from-to onsets of the grouping varibales
-    onsets = get_timeexpanded_random_grouping(group, time, term.basisfunction)
-    #print(size(reMat.z))
-    refs = zeros(size(z)[2]) .+ 1
-    for (i, o) in enumerate(onsets[2:end])
-        # check for overlap
-        if (minimum(o) <= maximum(onsets[i+1])) & (maximum(o) <= minimum(onsets[i+1]))
-            error("overlap in random effects structure detected, not currently supported")
+    # Determine which grouping level covers each time sample.
+    # Every event contributes to the time samples spanned by its basisfunction, and all
+    # contributions to a sample have to belong to the same grouping level, otherwise the
+    # random effects of different levels would leak into each other.
+    # reMat.refs contains the level index (into reMat.levels) of each event.
+    levels = reMat.levels
+    refs = zeros(Int32, size(z, 2)) # grouping level per time sample, 0 = not assigned yet
+    shift = Unfold.shift_onset(term.basisfunction)
+    w = Unfold.width(term.basisfunction)
+    for (onset, lev) in zip(time, reMat.refs)
+        s = floor(Int, onset) + shift
+        for t in max(s, 1):min(s + w - 1, length(refs))
+            if refs[t] == 0
+                refs[t] = lev
+            elseif refs[t] != lev
+                error(
+                    "overlap in random effects structure detected: time sample $t is covered by " *
+                    "the basisfunctions of more than one level of grouping variable $(rhs.sym) " *
+                    "($(levels[refs[t]]) and $(levels[lev])). The random effects of different " *
+                    "levels would leak into each other. Increase the distance between events of " *
+                    "different levels or shorten the basisfunction.",
+                )
+            end
         end
     end
 
-    # From now we can assume no overlap
-    # We want to fnd which subject is active when
-    refs = zeros(size(z)[2]) .+ 1
-    uGroup = unique(group)
-
-    for (i, g) in enumerate(uGroup[1:end])
-
-        ix_start = findfirst(g .== group)
-        ix_end = findlast(g .== group)
-        if i == 1
-            time_start = 1
+    # Time samples not covered by any event have z == 0, so the surrounding level can be extended into the gaps
+    prev = one(Int32)
+    for t in eachindex(refs)
+        if refs[t] == 0
+            refs[t] = prev
         else
-            time_start = time[ix_start]
-            # XXX Replace this functionality by shift_onset?
-            time_start = time_start - sum(Unfold.times(term.basisfunction) .<= 0)
+            prev = refs[t]
         end
-        if i == length(uGroup)
-            time_stop = size(refs, 1)
-        else
-            time_stop = time[ix_end]
-            time_stop = time_stop + sum(Unfold.times(term.basisfunction) .> 0)
-        end
-        if time_start < 0
-            time_start = 1
-        end
-
-        if time_stop > size(refs, 1)
-            time_stop = size(refs, 1)
-        end
-
-
-        #println("$g,$time_start,$time_stop")
-        refs[Int64(time_start):Int64(time_stop)] .= i
     end
 
     # Other variables with implementaions taken from the LinerMixedModel function
     wtz = z
-    trm = term
 
     S = size(z, 1)
     T = eltype(z)
     λ = LowerTriangular(Matrix{T}(I, S, S))
 
-    inds = MixedModels.sizehint!(Int[], (S * (S + 1)) >> 1) # double trouble? can this line go?
-    m = reshape(1:abs2(S), (S, S))
     inds = sizehint!(Int[], (S * (S + 1)) >> 1)
+    m = reshape(1:abs2(S), (S, S))
     for j = 1:S
         for i = j:S
             # We currently restrict to diagonal entries
@@ -234,15 +203,10 @@ function StatsModels.modelcols(
         end
     end
 
-    levels = reMat.levels
-    refs = refs
-
-
-    # reMat.levels doesnt change
     cnames = coefnames(term)
     #print(refs)
     adjA = MixedModels.adjA(refs, z)
-    scratch = Matrix{T}(undef, (S, length(uGroup)))
+    scratch = Matrix{T}(undef, (S, length(levels)))
 
     # Once MixedModels.jl supports it, can be replaced with: SparseReMat
     ReMat{T,S}(rhs, refs, levels, cnames, z, wtz, λ, inds, adjA, scratch)
