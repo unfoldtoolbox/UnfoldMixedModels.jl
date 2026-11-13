@@ -20,7 +20,14 @@ function fake_lmm(
         time_ix = fcoll.fits[k].timeIX
         y = data[channel, time_ix, :]
     elseif N == 2
-        y = data[channel, :]
+        time_ix = fcoll.fits[k].timeIX
+        if isnan(time_ix)
+            # continuous-time model: data is (channel x time), one fit per channel
+            y = data[channel, :]
+        else
+            # mass-univariate: data is (time x trial), one fit per timepoint
+            y = data[time_ix, :]
+        end
     else
         y = data
     end
@@ -79,7 +86,10 @@ julia> reshape(vcat(pvalues(likelihoodratiotest(m1,m2))...),ntimes,nchan)'
 
 """
 function StatsAPI.pvalue(lrtvec::Vector{MixedModels.LikelihoodRatioTest})
-    [lrt.pvalues for lrt in lrtvec]
+    # MixedModels 5 returns one p-value per model with a NaN placeholder for the null
+    # row, MixedModels 4 one per comparison; keep only the actual comparisons
+    nmodels = length(lrtvec[1].dof)
+    [collect(lrt.pvalues[(end - nmodels + 2):end]) for lrt in lrtvec]
 end
 
 

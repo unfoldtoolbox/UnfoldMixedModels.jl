@@ -43,6 +43,17 @@ end
     @test uf_pval[1, :] == uf_pval[2, :]
 
     #---
+    # 2D input (time x trial): fake_lmm must pick the correct timepoint per fit
+    # (regression: all fake models previously used timepoint 1, giving NaN p-values)
+    data2d = data[1, :, :]
+    m0_2d = fit(UnfoldModel, [Any => (f0, times)], evts, data2d)
+    m1_2d = fit(UnfoldModel, [Any => (f1, times)], evts, data2d)
+    uf_lrt_2d = likelihoodratiotest(data2d, m0_2d, m1_2d)
+    pvals_2d = vcat(pvalue(uf_lrt_2d)...)
+    @test !any(isnan, pvals_2d)
+    @test isapprox(pvals_2d, uf_pval[1, :]; atol = 1e-10)
+
+    #---
     for tix = 1:3
         evts[!, :y] = data[1, tix, :]
 
